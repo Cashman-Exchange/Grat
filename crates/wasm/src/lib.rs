@@ -144,6 +144,8 @@ fn decode_report_inner(tx_result_json: &str) -> Result<DiagnosticReport, String>
                     read_bytes_limit: 0,
                     write_bytes: 0,
                 },
+                operation_index: None,
+                operation_count: None,
             });
         }
     }

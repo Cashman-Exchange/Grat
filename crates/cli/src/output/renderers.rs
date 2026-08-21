@@ -512,6 +512,8 @@ mod tests {
             failing_contract_id: None,
             call_chain: None,
             resource_diagnostics: None,
+            operation_index: None,
+            operation_count: None,
             learn_more: "https://developers.stellar.org/docs/learn/smart-contracts/errors"
                 .to_string(),
         }
@@ -596,6 +598,8 @@ mod tests {
                 write_bytes: 500,
             },
             return_value: None,
+            operation_index: None,
+            operation_count: None,
         };
 
         let output = render_context_table(&context);
