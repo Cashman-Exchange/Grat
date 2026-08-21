@@ -253,11 +253,16 @@ fn decode_operation_results(
                     stellar_xdr::curr::InvokeHostFunctionResult::Success(hash) => {
                         let (fname, args, ret_val) = op.as_ref().and_then(|o| {
                             if let OperationBody::InvokeHostFunction(invoke) = &o.body {
-                                let fname = invoke.function_name.to_string();
-                                let args: Vec<String> = invoke.args.iter().map(|a| format!("{a:?}")).collect();
-                                (Some(fname), args, None)
+                                match &invoke.host_function {
+                                    stellar_xdr::curr::HostFunction::InvokeContract(args) => {
+                                        let fname = args.function_name.to_string();
+                                        let arguments = args.args.iter().map(|a| format!("{a:?}")).collect();
+                                        Some((Some(fname), arguments, None))
+                                    }
+                                    _ => Some((None, vec![], None)),
+                                }
                             } else {
-                                (None, vec![], None)
+                                None
                             }
                         }).unwrap_or((None, vec![], None));
 
@@ -271,13 +276,16 @@ fn decode_operation_results(
                         }
                     }
                     stellar_xdr::curr::InvokeHostFunctionResult::Trapped => {
-                        let (fname, _) = op.as_ref().and_then(|o| {
+                        let fname = op.as_ref().and_then(|o| {
                             if let OperationBody::InvokeHostFunction(invoke) = &o.body {
-                                (Some(invoke.function_name.to_string()), ())
+                                match &invoke.host_function {
+                                    stellar_xdr::curr::HostFunction::InvokeContract(args) => Some(args.function_name.to_string()),
+                                    _ => None,
+                                }
                             } else {
-                                (None, ())
+                                None
                             }
-                        }).unwrap_or((None, ()));
+                        });
 
                         OperationResultInfo {
                             function_name: fname,
@@ -285,17 +293,20 @@ fn decode_operation_results(
                             return_value: None,
                             is_success: false,
                             error_category: Some("Contract".to_string()),
-                            error_name: Some("HostError"),
+                            error_name: Some("HostError".to_string()),
                         }
                     }
                     stellar_xdr::curr::InvokeHostFunctionResult::ResourceLimitExceeded => {
-                        let (fname, _) = op.as_ref().and_then(|o| {
+                        let fname = op.as_ref().and_then(|o| {
                             if let OperationBody::InvokeHostFunction(invoke) = &o.body {
-                                (Some(invoke.function_name.to_string()), ())
+                                match &invoke.host_function {
+                                    stellar_xdr::curr::HostFunction::InvokeContract(args) => Some(args.function_name.to_string()),
+                                    _ => None,
+                                }
                             } else {
-                                (None, ())
+                                None
                             }
-                        }).unwrap_or((None, ()));
+                        });
 
                         OperationResultInfo {
                             function_name: fname,
@@ -303,17 +314,20 @@ fn decode_operation_results(
                             return_value: None,
                             is_success: false,
                             error_category: Some("Budget".to_string()),
-                            error_name: Some("HostError"),
+                            error_name: Some("HostError".to_string()),
                         }
                     }
                     stellar_xdr::curr::InvokeHostFunctionResult::EntryArchived => {
-                        let (fname, _) = op.as_ref().and_then(|o| {
+                        let fname = op.as_ref().and_then(|o| {
                             if let OperationBody::InvokeHostFunction(invoke) = &o.body {
-                                (Some(invoke.function_name.to_string()), ())
+                                match &invoke.host_function {
+                                    stellar_xdr::curr::HostFunction::InvokeContract(args) => Some(args.function_name.to_string()),
+                                    _ => None,
+                                }
                             } else {
-                                (None, ())
+                                None
                             }
-                        }).unwrap_or((None, ()));
+                        });
 
                         OperationResultInfo {
                             function_name: fname,
@@ -321,18 +335,21 @@ fn decode_operation_results(
                             return_value: None,
                             is_success: false,
                             error_category: Some("Storage".to_string()),
-                            error_name: Some("HostError"),
+                            error_name: Some("HostError".to_string()),
                         }
                     }
                     stellar_xdr::curr::InvokeHostFunctionResult::Malformed
                     | stellar_xdr::curr::InvokeHostFunctionResult::InsufficientRefundableFee => {
-                        let (fname, _) = op.as_ref().and_then(|o| {
+                        let fname = op.as_ref().and_then(|o| {
                             if let OperationBody::InvokeHostFunction(invoke) = &o.body {
-                                (Some(invoke.function_name.to_string()), ())
+                                match &invoke.host_function {
+                                    stellar_xdr::curr::HostFunction::InvokeContract(args) => Some(args.function_name.to_string()),
+                                    _ => None,
+                                }
                             } else {
-                                (None, ())
+                                None
                             }
-                        }).unwrap_or((None, ()));
+                        });
 
                         OperationResultInfo {
                             function_name: fname,
@@ -340,7 +357,7 @@ fn decode_operation_results(
                             return_value: None,
                             is_success: false,
                             error_category: Some("Context".to_string()),
-                            error_name: Some("HostError"),
+                            error_name: Some("HostError".to_string()),
                         }
                     }
                 }
@@ -348,7 +365,10 @@ fn decode_operation_results(
             _ => {
                 let fname = op.as_ref().and_then(|o| {
                     if let OperationBody::InvokeHostFunction(invoke) = &o.body {
-                        Some(invoke.function_name.to_string())
+                        match &invoke.host_function {
+                            stellar_xdr::curr::HostFunction::InvokeContract(args) => Some(args.function_name.to_string()),
+                            _ => None,
+                        }
                     } else {
                         None
                     }
@@ -360,7 +380,7 @@ fn decode_operation_results(
                     return_value: None,
                     is_success: false,
                     error_category: Some("Unknown".to_string()),
-                    error_name: Some("NonInvokeHostFunctionOperation"),
+                    error_name: Some("NonInvokeHostFunctionOperation".to_string()),
                 }
             }
         };
@@ -496,7 +516,8 @@ fn enrich_resource_report(
     report: &mut DiagnosticReport,
     tx_data: &serde_json::Value,
 ) -> crate::error::GratResult<()> {
-    crate::decode::resource_analyzer::enrich_report(report, tx_data)
+    crate::decode::resource_analyzer::enrich_report(report, tx_data);
+    Ok(())
 }
 
 pub async fn decode_transaction_with_op_filter(

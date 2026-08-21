@@ -1,30 +1,50 @@
 use crate::error::{GratError, GratResult};
-use crate::taxonomy::loader::TaxonomyParser;
-use crate::taxonomy::schema::ErrorCategory;
+use crate::taxonomy::schema::{TaxonomySchema, ErrorCategory, TaxonomyEntry};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-/// A single issue found by the linter.
-#[derive(Debug, Clone)]
-pub struct LintIssue {
-    /// Source file where the issue was found.
-    pub file: String,
-    /// The `id` of the taxonomy entry the issue relates to, if applicable.
-    pub entry_id: Option<String>,
-    /// Human-readable description of the issue.
-    pub message: String,
+const MIN_DESCRIPTION_LEN: usize = 15;
+
+/// Helper to locate the 1-based line number of a field in a TOML file.
+fn get_line_number(toml_content: &str, entry_id: &str, field_name: Option<&str>) -> Option<usize> {
+    let mut entry_line_idx = None;
+    let lines: Vec<&str> = toml_content.lines().collect();
+    for (idx, line) in lines.iter().enumerate() {
+        let cleaned = line.replace(' ', "").replace('\'', "\"");
+        if cleaned.contains(&format!("id=\"{}\"", entry_id)) {
+            entry_line_idx = Some(idx);
+            break;
+        }
+    }
+    
+    let entry_idx = entry_line_idx?;
+    
+    if let Some(field) = field_name {
+        for idx in entry_idx..lines.len() {
+            if idx > entry_idx && (lines[idx].trim().starts_with("[[errors]]") || lines[idx].trim().starts_with("[metadata]") || lines[idx].trim().starts_with("[category]")) {
+                break;
+            }
+            let cleaned = lines[idx].replace(' ', "");
+            if cleaned.starts_with(&format!("{}=", field)) {
+                return Some(idx + 1);
+            }
+            // For nested descriptions (causes or fixes)
+            if field == "description" && lines[idx].trim().starts_with("description =") {
+                return Some(idx + 1);
+            }
+        }
+    }
+    
+    Some(entry_idx + 1)
 }
 
 /// Lint all `*.toml` taxonomy files in `dir`.
 ///
-/// Returns a list of [`LintIssue`]s. The function does **not** short-circuit on
-/// the first error – it processes every file and collects all issues.
-pub fn lint_dir(dir: &Path) -> GratResult<Vec<LintIssue>> {
-    let mut issues: Vec<LintIssue> = Vec::new();
-
-    // ------------------------------------------------------------------
+/// Under the strict build-time validation rules, this function will panic
+/// immediately if any syntax error, unknown field, duplicate code, or invalid/too-short
+/// property is encountered.
+pub fn lint_dir(dir: &Path) -> GratResult<()> {
     // 1. Gather all *.toml files in the directory
-    // ------------------------------------------------------------------
     let mut toml_files: Vec<std::path::PathBuf> = Vec::new();
     let dir_reader = std::fs::read_dir(dir)
         .map_err(|e| GratError::TaxonomyError(format!("Cannot read taxonomy dir: {e}")))?;
@@ -37,12 +57,10 @@ pub fn lint_dir(dir: &Path) -> GratResult<Vec<LintIssue>> {
         }
     }
 
-    // All successfully-parsed entries, annotated with their source file name.
-    let mut all_entries: Vec<(String, crate::taxonomy::schema::TaxonomyEntry)> = Vec::new();
+    // All successfully-parsed entries, annotated with their source file name and file content.
+    let mut all_entries: Vec<(String, String, TaxonomyEntry)> = Vec::new();
 
-    // ------------------------------------------------------------------
     // 2. Parse every file and validate per-entry rules
-    // ------------------------------------------------------------------
     for path in &toml_files {
         let file_name = path
             .file_name()
@@ -50,175 +68,198 @@ pub fn lint_dir(dir: &Path) -> GratResult<Vec<LintIssue>> {
             .unwrap_or("unknown")
             .to_string();
 
-        let content = match std::fs::read_to_string(path) {
-            Ok(c) => c,
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| GratError::TaxonomyError(format!("Cannot read file {file_name}: {e}")))?;
+
+        // Attempt strict deserialization. If it fails, extract line info from the error.
+        let schema: TaxonomySchema = match toml::from_str(&content) {
+            Ok(s) => s,
             Err(e) => {
-                issues.push(LintIssue {
-                    file: file_name,
-                    entry_id: None,
-                    message: format!("Cannot read file: {e}"),
-                });
-                continue;
+                let span = e.span();
+                let (line, col) = if let Some(span) = span {
+                    let mut line = 1;
+                    let mut col = 1;
+                    for &ch in content.as_bytes().iter().take(span.start) {
+                        if ch == b'\n' {
+                            line += 1;
+                            col = 1;
+                        } else {
+                            col += 1;
+                        }
+                    }
+                    (line, col)
+                } else {
+                    (1, 1)
+                };
+                panic!(
+                    "Taxonomy TOML parse error in {} at line {} (column {}): {}",
+                    file_name,
+                    line,
+                    col,
+                    e
+                );
             }
         };
 
-        let schema = match TaxonomyParser::parse(&content) {
-            Ok(s) => s,
-            Err(e) => {
-                issues.push(LintIssue {
-                    file: file_name,
-                    entry_id: None,
-                    message: format!("TOML parse error: {e}"),
-                });
-                continue;
-            }
-        };
+        // Check category description length
+        if schema.category.description.trim().len() < MIN_DESCRIPTION_LEN {
+            let line_num = content.lines()
+                .position(|l| l.trim().starts_with("description ="))
+                .map(|idx| idx + 1)
+                .unwrap_or(1);
+            panic!(
+                "Taxonomy validation error in {} at line {}: category description is too short (must be at least {} characters)",
+                file_name, line_num, MIN_DESCRIPTION_LEN
+            );
+        }
 
         for entry in schema.errors {
             let entry_id = entry.id.clone();
 
-            // ── id must be non-empty ─────────────────────────────────
+            // id must be non-empty
             if entry.id.trim().is_empty() {
-                issues.push(LintIssue {
-                    file: file_name.clone(),
-                    entry_id: Some(entry_id.clone()),
-                    message: "id is empty".to_string(),
-                });
+                let line_num = get_line_number(&content, &entry_id, None).unwrap_or(1);
+                panic!(
+                    "Taxonomy validation error in {} at line {}: entry id is empty",
+                    file_name, line_num
+                );
             }
 
-            // ── name must be non-empty ───────────────────────────────
+            // name must be non-empty
             if entry.name.trim().is_empty() {
-                issues.push(LintIssue {
-                    file: file_name.clone(),
-                    entry_id: Some(entry_id.clone()),
-                    message: "name is empty".to_string(),
-                });
+                let line_num = get_line_number(&content, &entry_id, Some("name")).unwrap_or(1);
+                panic!(
+                    "Taxonomy validation error in {} at line {}: name is empty",
+                    file_name, line_num
+                );
             }
 
-            // ── summary must be non-empty ────────────────────────────
-            if entry.summary.trim().is_empty() {
-                issues.push(LintIssue {
-                    file: file_name.clone(),
-                    entry_id: Some(entry_id.clone()),
-                    message: "summary is empty".to_string(),
-                });
+            // summary must meet length requirement
+            if entry.summary.trim().len() < MIN_DESCRIPTION_LEN {
+                let line_num = get_line_number(&content, &entry_id, Some("summary")).unwrap_or(1);
+                panic!(
+                    "Taxonomy validation error in {} at line {}: summary for entry '{}' is too short (must be at least {} characters)",
+                    file_name, line_num, entry_id, MIN_DESCRIPTION_LEN
+                );
             }
 
-            // ── detailed_explanation must be non-empty ───────────────
-            if entry.detailed_explanation.trim().is_empty() {
-                issues.push(LintIssue {
-                    file: file_name.clone(),
-                    entry_id: Some(entry_id.clone()),
-                    message: "detailed_explanation is empty".to_string(),
-                });
+            // detailed_explanation must meet length requirement
+            if entry.detailed_explanation.trim().len() < MIN_DESCRIPTION_LEN {
+                let line_num = get_line_number(&content, &entry_id, Some("detailed_explanation")).unwrap_or(1);
+                panic!(
+                    "Taxonomy validation error in {} at line {}: detailed_explanation for entry '{}' is too short (must be at least {} characters)",
+                    file_name, line_num, entry_id, MIN_DESCRIPTION_LEN
+                );
             }
 
-            // ── severity must be a known value ───────────────────────
-            // Checked against actual data files: Error, Warning, Info, Fatal
+            // severity must be a known value
             const VALID_SEVERITIES: &[&str] = &["Error", "Warning", "Info", "Fatal"];
             if !VALID_SEVERITIES.contains(&entry.severity.as_str()) {
-                issues.push(LintIssue {
-                    file: file_name.clone(),
-                    entry_id: Some(entry_id.clone()),
-                    message: format!(
-                        "invalid severity '{}': must be one of {}",
-                        entry.severity,
-                        VALID_SEVERITIES.join(", "),
-                    ),
-                });
+                let line_num = get_line_number(&content, &entry_id, Some("severity")).unwrap_or(1);
+                panic!(
+                    "Taxonomy validation error in {} at line {}: invalid severity '{}': must be one of {}",
+                    file_name, line_num, entry.severity, VALID_SEVERITIES.join(", ")
+                );
             }
 
-            // ── since_protocol > 0 when present ──────────────────────
+            // since_protocol > 0 when present
             if let Some(sp) = entry.since_protocol {
                 if sp == 0 {
-                    issues.push(LintIssue {
-                        file: file_name.clone(),
-                        entry_id: Some(entry_id.clone()),
-                        message: "since_protocol must be > 0".to_string(),
-                    });
+                    let line_num = get_line_number(&content, &entry_id, Some("since_protocol")).unwrap_or(1);
+                    panic!(
+                        "Taxonomy validation error in {} at line {}: since_protocol must be > 0",
+                        file_name, line_num
+                    );
                 }
             }
 
-            // ── deprecated_protocol >= since_protocol ────────────────
+            // deprecated_protocol >= since_protocol
             if let (Some(dp), Some(sp)) = (entry.deprecated_protocol, entry.since_protocol) {
                 if dp < sp {
-                    issues.push(LintIssue {
-                        file: file_name.clone(),
-                        entry_id: Some(entry_id.clone()),
-                        message: format!(
-                            "deprecated_protocol ({dp}) must be >= since_protocol ({sp})"
-                        ),
-                    });
+                    let line_num = get_line_number(&content, &entry_id, Some("deprecated_protocol")).unwrap_or(1);
+                    panic!(
+                        "Taxonomy validation error in {} at line {}: deprecated_protocol ({dp}) must be >= since_protocol ({sp})",
+                        file_name, line_num
+                    );
                 }
             }
 
-            // ── documentation_url must parse as a URL when present ───
-            // Structural validation only – no live HTTP requests.
+            // documentation_url must parse as a URL when present
             if let Some(ref doc_url) = entry.documentation_url {
                 if url::Url::parse(doc_url).is_err() {
-                    issues.push(LintIssue {
-                        file: file_name.clone(),
-                        entry_id: Some(entry_id.clone()),
-                        message: format!("documentation_url '{doc_url}' is not a valid URL"),
-                    });
+                    let line_num = get_line_number(&content, &entry_id, Some("documentation_url")).unwrap_or(1);
+                    panic!(
+                        "Taxonomy validation error in {} at line {}: documentation_url '{doc_url}' is not a valid URL",
+                        file_name, line_num
+                    );
                 }
             }
 
-            all_entries.push((file_name.clone(), entry));
+            // check causes descriptions
+            for cause in &entry.common_causes {
+                if cause.description.trim().len() < MIN_DESCRIPTION_LEN {
+                    let line_num = get_line_number(&content, &entry_id, Some("description")).unwrap_or(1);
+                    panic!(
+                        "Taxonomy validation error in {} at line {}: common cause description is too short (must be at least {} characters)",
+                        file_name, line_num, MIN_DESCRIPTION_LEN
+                    );
+                }
+            }
+
+            // check fixes descriptions
+            for fix in &entry.suggested_fixes {
+                if fix.description.trim().len() < MIN_DESCRIPTION_LEN {
+                    let line_num = get_line_number(&content, &entry_id, Some("description")).unwrap_or(1);
+                    panic!(
+                        "Taxonomy validation error in {} at line {}: suggested fix description is too short (must be at least {} characters)",
+                        file_name, line_num, MIN_DESCRIPTION_LEN
+                    );
+                }
+            }
+
+            all_entries.push((file_name.clone(), content.clone(), entry));
         }
     }
 
-    // ------------------------------------------------------------------
     // 3. Cross-entry checks
-    // ------------------------------------------------------------------
 
-    // ── Duplicate (category, code) pairs ──────────────────────────────
-    let mut seen: HashMap<(ErrorCategory, u32), String> = HashMap::new();
-    for (file_name, entry) in &all_entries {
+    // Duplicate (category, code) pairs
+    let mut seen: HashMap<(ErrorCategory, u32), (String, String)> = HashMap::new();
+    for (file_name, content, entry) in &all_entries {
         let key = (entry.category.clone(), entry.code);
-        if let Some(prev_file) = seen.get(&key) {
-            issues.push(LintIssue {
-                file: file_name.clone(),
-                entry_id: Some(entry.id.clone()),
-                message: format!(
-                    "duplicate (category, code) pair ({}, {}) already defined in {}",
-                    entry.category, entry.code, prev_file,
-                ),
-            });
+        if let Some((prev_file, prev_id)) = seen.get(&key) {
+            let line_num = get_line_number(content, &entry.id, Some("code")).unwrap_or(1);
+            panic!(
+                "Taxonomy validation error in {} at line {}: duplicate (category, code) pair ({}, {}) already defined by entry '{}' in {}",
+                file_name, line_num, entry.category, entry.code, prev_id, prev_file
+            );
         } else {
-            seen.insert(key, file_name.clone());
+            seen.insert(key, (file_name.clone(), entry.id.clone()));
         }
     }
 
-    // ── related_errors should reference existing ids ──────────────────
-    let all_ids: HashSet<&str> = all_entries.iter().map(|(_, e)| e.id.as_str()).collect();
-    for (file_name, entry) in &all_entries {
+    // related_errors should reference existing ids
+    let all_ids: HashSet<&str> = all_entries.iter().map(|(_, _, e)| e.id.as_str()).collect();
+    for (file_name, content, entry) in &all_entries {
         for rel in &entry.related_errors {
             if !all_ids.contains(rel.as_str()) {
-                issues.push(LintIssue {
-                    file: file_name.clone(),
-                    entry_id: Some(entry.id.clone()),
-                    message: format!(
-                        "related_errors references '{}' which does not exist in any loaded file",
-                        rel,
-                    ),
-                });
+                let line_num = get_line_number(content, &entry.id, Some("related_errors")).unwrap_or(1);
+                panic!(
+                    "Taxonomy validation error in {} at line {}: related_errors references '{}' which does not exist in any loaded file",
+                    file_name, line_num, rel
+                );
             }
         }
     }
 
-    Ok(issues)
+    Ok(())
 }
 
-// -----------------------------------------------------------------------
-// Tests
-// -----------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::taxonomy::schema::{CategoryMeta, ErrorCategory, TaxonomyEntry, TaxonomySchema};
 
-    /// Helper: create a minimal valid entry for testing.
     fn valid_entry(id: &str, category: ErrorCategory, code: u32) -> TaxonomyEntry {
         TaxonomyEntry {
             id: id.to_string(),
@@ -228,8 +269,8 @@ mod tests {
             severity: "Error".to_string(),
             since_protocol: Some(20),
             deprecated_protocol: None,
-            summary: "Test summary.".to_string(),
-            detailed_explanation: "Test detailed explanation.".to_string(),
+            summary: "Test summary is long enough.".to_string(),
+            detailed_explanation: "Test detailed explanation is also long enough.".to_string(),
             common_causes: vec![],
             suggested_fixes: vec![],
             related_errors: vec![],
@@ -239,7 +280,6 @@ mod tests {
         }
     }
 
-    /// Helper: write a taxonomy file to a temp dir and return its path.
     fn write_taxonomy_file(
         dir: &std::path::Path,
         name: &str,
@@ -248,7 +288,7 @@ mod tests {
         let schema = TaxonomySchema {
             category: CategoryMeta {
                 name: "Test".to_string(),
-                description: "Test data".to_string(),
+                description: "Test data (must be long enough)".to_string(),
                 source_module: "test".to_string(),
             },
             errors: entries,
@@ -271,59 +311,36 @@ mod tests {
             ],
         );
 
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        assert!(issues.is_empty(), "expected no issues, got: {issues:?}",);
+        let result = lint_dir(dir.path());
+        assert!(result.is_ok());
     }
 
     #[test]
-    fn missing_required_field_fails() {
+    #[should_panic(expected = "Taxonomy TOML parse error")]
+    fn unknown_field_fails() {
         let dir = tempfile::tempdir().expect("temp dir");
-
-        // Manually craft via toml string so we can omit fields that serde
-        // treats as required (but may still serialize as empty).
         let toml_str = r#"
 [category]
 name = "Test"
-description = "Test data"
+description = "Test data (must be long enough)"
 source_module = "test"
 
 [[errors]]
-id = ""
+id = "test.err"
 category = "budget"
 code = 1
-name = ""
+name = "TestErr"
 severity = "Error"
-summary = ""
-detailed_explanation = ""
+summary = "Test summary is long enough."
+detailed_explanation = "Test detailed explanation is also long enough."
+unknown_field = "oops"
 "#;
         std::fs::write(dir.path().join("test.toml"), toml_str).expect("write");
-
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        assert!(
-            !issues.is_empty(),
-            "expected issues for empty required fields"
-        );
-        // Expect at least id empty, name empty, summary empty, detailed_explanation empty
-        let messages: Vec<&str> = issues.iter().map(|i| i.message.as_str()).collect();
-        assert!(
-            messages.contains(&"id is empty"),
-            "missing 'id is empty': {messages:?}"
-        );
-        assert!(
-            messages.contains(&"name is empty"),
-            "missing 'name is empty': {messages:?}"
-        );
-        assert!(
-            messages.contains(&"summary is empty"),
-            "missing 'summary is empty': {messages:?}"
-        );
-        assert!(
-            messages.contains(&"detailed_explanation is empty"),
-            "missing 'detailed_explanation is empty': {messages:?}"
-        );
+        let _ = lint_dir(dir.path());
     }
 
     #[test]
+    #[should_panic(expected = "duplicate (category, code) pair")]
     fn duplicate_category_code_fails() {
         let dir = tempfile::tempdir().expect("temp dir");
         write_taxonomy_file(
@@ -331,39 +348,22 @@ detailed_explanation = ""
             "test.toml",
             vec![
                 valid_entry("test.dup.a", ErrorCategory::Budget, 1),
-                valid_entry("test.dup.b", ErrorCategory::Budget, 1), // duplicate!
+                valid_entry("test.dup.b", ErrorCategory::Budget, 1),
             ],
         );
 
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        let dup_issues: Vec<&LintIssue> = issues
-            .iter()
-            .filter(|i| i.message.contains("duplicate"))
-            .collect();
-        assert_eq!(
-            dup_issues.len(),
-            1,
-            "expected 1 duplicate issue, got {dup_issues:?}",
-        );
+        let _ = lint_dir(dir.path());
     }
 
     #[test]
+    #[should_panic(expected = "documentation_url")]
     fn malformed_documentation_url_fails() {
         let dir = tempfile::tempdir().expect("temp dir");
         let mut entry = valid_entry("test.bad.url", ErrorCategory::Budget, 42);
         entry.documentation_url = Some("not a url".to_string());
         write_taxonomy_file(dir.path(), "test.toml", vec![entry]);
 
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        let url_issues: Vec<&LintIssue> = issues
-            .iter()
-            .filter(|i| i.message.contains("documentation_url"))
-            .collect();
-        assert_eq!(
-            url_issues.len(),
-            1,
-            "expected 1 url issue, got {url_issues:?}",
-        );
+        let _ = lint_dir(dir.path());
     }
 
     #[test]
@@ -373,91 +373,70 @@ detailed_explanation = ""
         entry.documentation_url = Some("https://example.com/docs".to_string());
         write_taxonomy_file(dir.path(), "test.toml", vec![entry]);
 
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        let url_issues: Vec<&LintIssue> = issues
-            .iter()
-            .filter(|i| i.message.contains("documentation_url"))
-            .collect();
-        assert!(
-            url_issues.is_empty(),
-            "expected no url issues, got {url_issues:?}",
-        );
+        let result = lint_dir(dir.path());
+        assert!(result.is_ok());
     }
 
     #[test]
+    #[should_panic(expected = "invalid severity")]
     fn bad_severity_fails() {
         let dir = tempfile::tempdir().expect("temp dir");
         let mut entry = valid_entry("test.bad.severity", ErrorCategory::Budget, 44);
         entry.severity = "BadSeverity".to_string();
         write_taxonomy_file(dir.path(), "test.toml", vec![entry]);
 
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        let sev_issues: Vec<&LintIssue> = issues
-            .iter()
-            .filter(|i| i.message.contains("severity"))
-            .collect();
-        assert_eq!(
-            sev_issues.len(),
-            1,
-            "expected 1 severity issue, got {sev_issues:?}",
-        );
+        let _ = lint_dir(dir.path());
     }
 
     #[test]
+    #[should_panic(expected = "since_protocol must be > 0")]
     fn since_protocol_zero_fails() {
         let dir = tempfile::tempdir().expect("temp dir");
         let mut entry = valid_entry("test.bad.sp", ErrorCategory::Budget, 45);
         entry.since_protocol = Some(0);
         write_taxonomy_file(dir.path(), "test.toml", vec![entry]);
 
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        let sp_issues: Vec<&LintIssue> = issues
-            .iter()
-            .filter(|i| i.message.contains("since_protocol"))
-            .collect();
-        assert_eq!(
-            sp_issues.len(),
-            1,
-            "expected 1 since_protocol issue, got {sp_issues:?}",
-        );
+        let _ = lint_dir(dir.path());
     }
 
     #[test]
+    #[should_panic(expected = "deprecated_protocol")]
     fn deprecated_before_since_fails() {
         let dir = tempfile::tempdir().expect("temp dir");
         let mut entry = valid_entry("test.bad.depr", ErrorCategory::Budget, 46);
         entry.since_protocol = Some(20);
-        entry.deprecated_protocol = Some(15); // < since_protocol
+        entry.deprecated_protocol = Some(15);
         write_taxonomy_file(dir.path(), "test.toml", vec![entry]);
 
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        let dep_issues: Vec<&LintIssue> = issues
-            .iter()
-            .filter(|i| i.message.contains("deprecated_protocol"))
-            .collect();
-        assert_eq!(
-            dep_issues.len(),
-            1,
-            "expected 1 deprecated_protocol issue, got {dep_issues:?}",
-        );
+        let _ = lint_dir(dir.path());
     }
 
     #[test]
+    #[should_panic(expected = "related_errors references")]
     fn unresolved_related_error_fails() {
         let dir = tempfile::tempdir().expect("temp dir");
         let mut entry = valid_entry("test.rel", ErrorCategory::Budget, 47);
         entry.related_errors = vec!["nonexistent.id".to_string()];
         write_taxonomy_file(dir.path(), "test.toml", vec![entry]);
 
-        let issues = lint_dir(dir.path()).expect("lint_dir");
-        let rel_issues: Vec<&LintIssue> = issues
-            .iter()
-            .filter(|i| i.message.contains("related_errors"))
-            .collect();
-        assert_eq!(
-            rel_issues.len(),
-            1,
-            "expected 1 related_errors issue, got {rel_issues:?}",
-        );
+        let _ = lint_dir(dir.path());
+    }
+
+    #[test]
+    #[should_panic(expected = "summary for entry 'test.short' is too short")]
+    fn short_summary_fails() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let mut entry = valid_entry("test.short", ErrorCategory::Budget, 48);
+        entry.summary = "Error occurred".to_string(); // 14 characters
+        write_taxonomy_file(dir.path(), "test.toml", vec![entry]);
+
+        let _ = lint_dir(dir.path());
+    }
+
+    #[test]
+    fn run_linter_on_production_taxonomy_data() {
+        let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        p.push("src/taxonomy/data");
+        lint_dir(&p).expect("Linter failed on production data");
     }
 }

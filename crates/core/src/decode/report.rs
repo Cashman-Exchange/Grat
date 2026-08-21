@@ -48,6 +48,8 @@ pub fn build_report(error: &ClassifiedError) -> GratResult<DiagnosticReport> {
             failing_contract_id: None,
             call_chain: None,
             resource_diagnostics: None,
+            operation_index: None,
+            operation_count: None,
             learn_more: "https://developers.stellar.org/docs/learn/smart-contracts/errors"
                 .to_string(),
         };

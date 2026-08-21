@@ -25,26 +25,14 @@ fn main() {
         process::exit(1);
     }
 
-    let issues = match grat_core::taxonomy::linter::lint_dir(&dir) {
-        Ok(issues) => issues,
+    match grat_core::taxonomy::linter::lint_dir(&dir) {
+        Ok(()) => {
+            println!("✅ No issues found in {}", dir.display());
+            process::exit(0);
+        }
         Err(e) => {
-            eprintln!("error: lint_dir failed: {e}");
+            eprintln!("error: lint_dir execution failed: {e}");
             process::exit(1);
         }
-    };
-
-    if issues.is_empty() {
-        println!("✅ No issues found in {}", dir.display());
-        process::exit(0);
     }
-
-    for issue in &issues {
-        match &issue.entry_id {
-            Some(eid) => eprintln!("{}:{}: {}", issue.file, eid, issue.message),
-            None => eprintln!("{}:: {}", issue.file, issue.message),
-        }
-    }
-
-    eprintln!("❌ Found {} issue(s) in {}", issues.len(), dir.display());
-    process::exit(1);
 }
