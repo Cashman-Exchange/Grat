@@ -113,9 +113,7 @@ mod tests {
     use super::*;
     use crate::spec::decoder::{ContractStructDef, ContractStructField};
     use serde_json::json;
-    use stellar_xdr::curr::{
-        Hash, ScAddress, ScMapEntry, ScString, ScSymbol, ScVal,
-    };
+    use stellar_xdr::curr::{Hash, ScAddress, ScMapEntry, ScString, ScSymbol, ScVal};
 
     fn sym(s: &str) -> ScVal {
         ScVal::Symbol(ScSymbol(s.try_into().unwrap()))
@@ -271,7 +269,10 @@ mod tests {
         let decoder = ArgumentDecoder::new();
         let func = ContractFunction {
             name: "transfer".to_string(),
-            params: vec![("to".to_string(), "Address".to_string()), ("amount".to_string(), "U128".to_string())],
+            params: vec![
+                ("to".to_string(), "Address".to_string()),
+                ("amount".to_string(), "U128".to_string()),
+            ],
             return_type: "Void".to_string(),
             doc: None,
             return_type_def: Some(ScSpecTypeDef::Void),

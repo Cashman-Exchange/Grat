@@ -89,7 +89,10 @@ mod tests {
         let decoder = FunctionCallDecoder::new();
         let func = ContractFunction {
             name: "add".to_string(),
-            params: vec![("a".to_string(), "U32".to_string()), ("b".to_string(), "U32".to_string())],
+            params: vec![
+                ("a".to_string(), "U32".to_string()),
+                ("b".to_string(), "U32".to_string()),
+            ],
             return_type: "U32".to_string(),
             doc: None,
             return_type_def: Some(ScSpecTypeDef::U32),
@@ -102,13 +105,7 @@ mod tests {
         let raw_args = vec![ScVal::U32(10), ScVal::U32(20)];
         let return_val = ScVal::U32(30);
 
-        let decoded = decoder.decode(
-            "add",
-            &raw_args,
-            Some(&func),
-            Some(&return_val),
-            None,
-        );
+        let decoded = decoder.decode("add", &raw_args, Some(&func), Some(&return_val), None);
 
         assert_eq!(decoded.function_name, "add");
         assert_eq!(decoded.arguments.len(), 2);
@@ -125,13 +122,7 @@ mod tests {
         let decoder = FunctionCallDecoder::new();
         let raw_args = vec![ScVal::U32(5)];
 
-        let decoded = decoder.decode(
-            "test_func",
-            &raw_args,
-            None,
-            None,
-            None,
-        );
+        let decoded = decoder.decode("test_func", &raw_args, None, None, None);
 
         assert_eq!(decoded.function_name, "test_func");
         assert_eq!(decoded.arguments.len(), 1);

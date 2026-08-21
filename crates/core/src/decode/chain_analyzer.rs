@@ -323,7 +323,6 @@ impl ChainAnalyzer {
         chain.trace = chain.render_trace();
         chain
     }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -500,7 +499,9 @@ impl DeepestErrorFinder {
 
                 if is_new_deepest {
                     let (contract_address, function_name) = match stack.last() {
-                        Some(frame) => (frame.contract_address.clone(), frame.function_name.clone()),
+                        Some(frame) => {
+                            (frame.contract_address.clone(), frame.function_name.clone())
+                        }
                         None => {
                             let address = event
                                 .event

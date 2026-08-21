@@ -1,7 +1,7 @@
 use crate::spec::decoder::{decode_contract_spec, ContractStructDef};
 use stellar_xdr::curr::{
-    Limits, ScSpecEntry, ScSpecTypeDef, ScSpecTypeUdt, ScSpecTypeVec,
-    ScSpecUdtStructFieldV0, ScSpecUdtStructV0, WriteXdr,
+    Limits, ScSpecEntry, ScSpecTypeDef, ScSpecTypeUdt, ScSpecTypeVec, ScSpecUdtStructFieldV0,
+    ScSpecUdtStructV0, WriteXdr,
 };
 
 fn leb128_encode(mut value: u64) -> Vec<u8> {
@@ -204,15 +204,13 @@ fn test_vec_of_nested_struct_type_def() {
         .expect("items type_def should be present");
 
     match type_def {
-        ScSpecTypeDef::Vec(vec) => {
-            match &*vec.element_type {
-                ScSpecTypeDef::Udt(udt) => {
-                    let name: String = udt.name.to_string();
-                    assert_eq!(name, "Inner");
-                }
-                other => panic!("expected Vec element to be Udt, got {other:?}"),
+        ScSpecTypeDef::Vec(vec) => match &*vec.element_type {
+            ScSpecTypeDef::Udt(udt) => {
+                let name: String = udt.name.to_string();
+                assert_eq!(name, "Inner");
             }
-        }
+            other => panic!("expected Vec element to be Udt, got {other:?}"),
+        },
         other => panic!("expected Vec variant, got {other:?}"),
     }
 }

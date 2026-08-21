@@ -1,8 +1,6 @@
 use crate::error::{GratError, GratResult};
 use serde::{Deserialize, Serialize};
-use stellar_xdr::curr::{
-    Limited, Limits, ReadXdr, ScSpecEntry, ScSpecTypeDef, ScSpecUdtStructV0,
-};
+use stellar_xdr::curr::{Limited, Limits, ReadXdr, ScSpecEntry, ScSpecTypeDef, ScSpecUdtStructV0};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractErrorEntry {
@@ -559,8 +557,8 @@ mod tests {
     fn test_extract_raw_section_custom_name() {
         let section_data = vec![10, 20, 30];
         let wasm = build_wasm_with_custom_section("contractenvmetav0", &section_data);
-        let result =
-            SpecParser::extract_raw_section(&wasm, "contractenvmetav0").expect("Should find section");
+        let result = SpecParser::extract_raw_section(&wasm, "contractenvmetav0")
+            .expect("Should find section");
         assert_eq!(result, section_data);
     }
 
@@ -633,11 +631,7 @@ mod tests {
 
     #[test]
     fn test_extract_raw_structs_returns_sc_spec_udt_struct_v0() {
-        let entry = make_struct_spec_entry(
-            "Voter",
-            "",
-            vec![("name", "", ScSpecTypeDef::String)],
-        );
+        let entry = make_struct_spec_entry("Voter", "", vec![("name", "", ScSpecTypeDef::String)]);
         let wasm = make_wasm_with_structs(vec![entry]);
         let result = SpecParser::extract_raw_structs(&wasm).expect("Should extract raw structs");
         assert_eq!(result.len(), 1);

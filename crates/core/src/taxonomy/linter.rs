@@ -1,5 +1,5 @@
 use crate::error::{GratError, GratResult};
-use crate::taxonomy::schema::{TaxonomySchema, ErrorCategory, TaxonomyEntry};
+use crate::taxonomy::schema::{ErrorCategory, TaxonomyEntry, TaxonomySchema};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -16,12 +16,16 @@ fn get_line_number(toml_content: &str, entry_id: &str, field_name: Option<&str>)
             break;
         }
     }
-    
+
     let entry_idx = entry_line_idx?;
-    
+
     if let Some(field) = field_name {
         for idx in entry_idx..lines.len() {
-            if idx > entry_idx && (lines[idx].trim().starts_with("[[errors]]") || lines[idx].trim().starts_with("[metadata]") || lines[idx].trim().starts_with("[category]")) {
+            if idx > entry_idx
+                && (lines[idx].trim().starts_with("[[errors]]")
+                    || lines[idx].trim().starts_with("[metadata]")
+                    || lines[idx].trim().starts_with("[category]"))
+            {
                 break;
             }
             let cleaned = lines[idx].replace(' ', "");
@@ -34,7 +38,7 @@ fn get_line_number(toml_content: &str, entry_id: &str, field_name: Option<&str>)
             }
         }
     }
-    
+
     Some(entry_idx + 1)
 }
 
@@ -93,17 +97,15 @@ pub fn lint_dir(dir: &Path) -> GratResult<()> {
                 };
                 panic!(
                     "Taxonomy TOML parse error in {} at line {} (column {}): {}",
-                    file_name,
-                    line,
-                    col,
-                    e
+                    file_name, line, col, e
                 );
             }
         };
 
         // Check category description length
         if schema.category.description.trim().len() < MIN_DESCRIPTION_LEN {
-            let line_num = content.lines()
+            let line_num = content
+                .lines()
                 .position(|l| l.trim().starts_with("description ="))
                 .map(|idx| idx + 1)
                 .unwrap_or(1);
@@ -145,7 +147,8 @@ pub fn lint_dir(dir: &Path) -> GratResult<()> {
 
             // detailed_explanation must meet length requirement
             if entry.detailed_explanation.trim().len() < MIN_DESCRIPTION_LEN {
-                let line_num = get_line_number(&content, &entry_id, Some("detailed_explanation")).unwrap_or(1);
+                let line_num =
+                    get_line_number(&content, &entry_id, Some("detailed_explanation")).unwrap_or(1);
                 panic!(
                     "Taxonomy validation error in {} at line {}: detailed_explanation for entry '{}' is too short (must be at least {} characters)",
                     file_name, line_num, entry_id, MIN_DESCRIPTION_LEN
@@ -165,7 +168,8 @@ pub fn lint_dir(dir: &Path) -> GratResult<()> {
             // since_protocol > 0 when present
             if let Some(sp) = entry.since_protocol {
                 if sp == 0 {
-                    let line_num = get_line_number(&content, &entry_id, Some("since_protocol")).unwrap_or(1);
+                    let line_num =
+                        get_line_number(&content, &entry_id, Some("since_protocol")).unwrap_or(1);
                     panic!(
                         "Taxonomy validation error in {} at line {}: since_protocol must be > 0",
                         file_name, line_num
@@ -176,7 +180,9 @@ pub fn lint_dir(dir: &Path) -> GratResult<()> {
             // deprecated_protocol >= since_protocol
             if let (Some(dp), Some(sp)) = (entry.deprecated_protocol, entry.since_protocol) {
                 if dp < sp {
-                    let line_num = get_line_number(&content, &entry_id, Some("deprecated_protocol")).unwrap_or(1);
+                    let line_num =
+                        get_line_number(&content, &entry_id, Some("deprecated_protocol"))
+                            .unwrap_or(1);
                     panic!(
                         "Taxonomy validation error in {} at line {}: deprecated_protocol ({dp}) must be >= since_protocol ({sp})",
                         file_name, line_num
@@ -187,7 +193,8 @@ pub fn lint_dir(dir: &Path) -> GratResult<()> {
             // documentation_url must parse as a URL when present
             if let Some(ref doc_url) = entry.documentation_url {
                 if url::Url::parse(doc_url).is_err() {
-                    let line_num = get_line_number(&content, &entry_id, Some("documentation_url")).unwrap_or(1);
+                    let line_num = get_line_number(&content, &entry_id, Some("documentation_url"))
+                        .unwrap_or(1);
                     panic!(
                         "Taxonomy validation error in {} at line {}: documentation_url '{doc_url}' is not a valid URL",
                         file_name, line_num
@@ -198,7 +205,8 @@ pub fn lint_dir(dir: &Path) -> GratResult<()> {
             // check causes descriptions
             for cause in &entry.common_causes {
                 if cause.description.trim().len() < MIN_DESCRIPTION_LEN {
-                    let line_num = get_line_number(&content, &entry_id, Some("description")).unwrap_or(1);
+                    let line_num =
+                        get_line_number(&content, &entry_id, Some("description")).unwrap_or(1);
                     panic!(
                         "Taxonomy validation error in {} at line {}: common cause description is too short (must be at least {} characters)",
                         file_name, line_num, MIN_DESCRIPTION_LEN
@@ -209,7 +217,8 @@ pub fn lint_dir(dir: &Path) -> GratResult<()> {
             // check fixes descriptions
             for fix in &entry.suggested_fixes {
                 if fix.description.trim().len() < MIN_DESCRIPTION_LEN {
-                    let line_num = get_line_number(&content, &entry_id, Some("description")).unwrap_or(1);
+                    let line_num =
+                        get_line_number(&content, &entry_id, Some("description")).unwrap_or(1);
                     panic!(
                         "Taxonomy validation error in {} at line {}: suggested fix description is too short (must be at least {} characters)",
                         file_name, line_num, MIN_DESCRIPTION_LEN
@@ -243,7 +252,8 @@ pub fn lint_dir(dir: &Path) -> GratResult<()> {
     for (file_name, content, entry) in &all_entries {
         for rel in &entry.related_errors {
             if !all_ids.contains(rel.as_str()) {
-                let line_num = get_line_number(content, &entry.id, Some("related_errors")).unwrap_or(1);
+                let line_num =
+                    get_line_number(content, &entry.id, Some("related_errors")).unwrap_or(1);
                 panic!(
                     "Taxonomy validation error in {} at line {}: related_errors references '{}' which does not exist in any loaded file",
                     file_name, line_num, rel

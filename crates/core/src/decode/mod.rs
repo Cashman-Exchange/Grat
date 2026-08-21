@@ -15,8 +15,8 @@ pub mod host_error;
 pub mod mappings;
 pub mod multi_op_decoder;
 pub mod report;
-pub mod return_decoder;
 pub mod resource_analyzer;
+pub mod return_decoder;
 pub mod scval_to_json;
 pub mod walker;
 
@@ -26,13 +26,13 @@ pub use auth::{
     AuthorizationType,
 };
 pub use auth_address_nonce::AddressWithNonce;
-pub use function_call_decoder::{DecodedArgument, DecodedFunctionCall, FunctionCallDecoder};
-pub use return_decoder::ReturnValueDecoder;
 pub use chain_analyzer::{analyze_call_chain, CallChain, ChainAnalyzer, ChainFrame, FrameRole};
+pub use function_call_decoder::{DecodedArgument, DecodedFunctionCall, FunctionCallDecoder};
+pub use multi_op_decoder::{decode_transaction_with_op_filter, MultiOpDecoder};
 pub use resource_analyzer::{
     MetricDiagnostic, MetricKind, ResourceDiagnostics, ResourceUsageAnalyzer, TransactionResultMeta,
 };
-pub use multi_op_decoder::{decode_transaction_with_op_filter, MultiOpDecoder};
+pub use return_decoder::ReturnValueDecoder;
 pub use scval_to_json::scval_to_json;
 pub use walker::{
     walk_diagnostic_events, DiagnosticEventKind, DiagnosticEventWalker, StructuredDiagnosticEvent,
