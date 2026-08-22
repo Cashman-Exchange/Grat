@@ -611,7 +611,7 @@ mod tests {
         assert_eq!(result[0].doc.as_deref(), Some("A user balance"));
         assert_eq!(result[0].fields.len(), 2);
         assert_eq!(result[0].fields[0].name, "amount");
-        assert_eq!(result[0].fields[0].type_name, "i128");
+        assert_eq!(result[0].fields[0].type_name, "I128");
         assert_eq!(result[0].fields[1].name, "asset");
         assert_eq!(result[0].fields[1].type_name, "Symbol");
     }

@@ -487,7 +487,7 @@ impl DeepestErrorFinder {
             // Evaluate every failure event, not just the first
             // ----------------------------------------------------------------
             if is_failure(event, &topics, &v0.data) {
-                let depth = stack.len();
+                let depth = stack.len().saturating_sub(1);
 
                 let is_new_deepest = match &deepest {
                     None => true,

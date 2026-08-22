@@ -87,7 +87,7 @@ impl CacheStore {
         let path = self.entry_path(category, key);
         if path.exists() {
             // Explicitly update access metadata to ensure LRU eviction works even if atime is disabled.
-            if let Ok(file) = std::fs::File::open(&path) {
+            if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&path) {
                 let _ = file.set_times(std::fs::FileTimes::new().set_accessed(SystemTime::now()));
             }
             let data = std::fs::read(&path)
