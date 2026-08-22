@@ -883,7 +883,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_simulate_transaction_returns_rpc_error_on_failure() {
-        let body = r#"{"jsonrpc":"2.0","id":1,"result":{"latestLedger":100,"error":"contract trap"}}"#;
+        let body =
+            r#"{"jsonrpc":"2.0","id":1,"result":{"latestLedger":100,"error":"contract trap"}}"#;
         let responses = vec![http_response(200, "OK", body)];
         let addr = spawn_mock_server(responses).await;
         let client = make_client(addr);
