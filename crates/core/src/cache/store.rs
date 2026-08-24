@@ -88,7 +88,12 @@ impl CacheStore {
         if path.exists() {
             // Explicitly update access metadata to ensure LRU eviction works even if atime is disabled.
             if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&path) {
-                let _ = file.set_times(std::fs::FileTimes::new().set_accessed(SystemTime::now()));
+                let now = SystemTime::now();
+                let _ = file.set_times(
+                    std::fs::FileTimes::new()
+                        .set_accessed(now)
+                        .set_modified(now),
+                );
             }
             let data = std::fs::read(&path)
                 .map_err(|e| GratError::CacheError(format!("Failed to read cache entry: {e}")))?;
@@ -160,12 +165,11 @@ impl CacheStore {
                         GratError::CacheError(format!("Failed to read cache file metadata: {e}"))
                     })?;
 
-                    let accessed = meta
-                        .accessed()
-                        .or_else(|_| meta.modified())
-                        .unwrap_or(SystemTime::UNIX_EPOCH);
+                    let accessed = meta.accessed().unwrap_or(SystemTime::UNIX_EPOCH);
+                    let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+                    let last_used = std::cmp::max(accessed, modified);
 
-                    files.push((accessed, entry));
+                    files.push((last_used, entry));
                 }
             }
 
