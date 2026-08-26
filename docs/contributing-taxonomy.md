@@ -5,6 +5,7 @@ The error taxonomy is a community-contributable database of every known Soroban 
 ## File Location
 
 Taxonomy files are in `crates/core/src/taxonomy/data/`, one file per error category:
+
 - `budget.toml`, `storage.toml`, `auth.toml`, `context.toml`, `value.toml`
 - `object.toml`, `crypto.toml`, `contract.toml`, `wasm.toml`, `events.toml`
 

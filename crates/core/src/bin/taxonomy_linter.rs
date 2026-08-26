@@ -10,15 +10,15 @@ use std::path::PathBuf;
 use std::process;
 
 fn main() {
-    let dir: PathBuf = std::env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
+    let dir: PathBuf = std::env::args_os().nth(1).map_or_else(
+        || {
             // Default to the data directory relative to the binary's workspace root.
             let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
             p.push("src/taxonomy/data");
             p
-        });
+        },
+        PathBuf::from,
+    );
 
     if !dir.is_dir() {
         eprintln!("error: '{}' is not a directory", dir.display());

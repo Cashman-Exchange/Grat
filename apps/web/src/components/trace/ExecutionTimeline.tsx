@@ -8,9 +8,18 @@ interface ExecutionTimelineProps {
   };
 }
 
-export function ExecutionTimeline({ nodes, resourceProfile }: ExecutionTimelineProps) {
-  const isApproachingReadLimit = resourceProfile && resourceProfile.read_limit > 0 && (resourceProfile.read_bytes / resourceProfile.read_limit) > 0.9;
-  const isApproachingWriteLimit = resourceProfile && resourceProfile.write_limit > 0 && (resourceProfile.write_bytes / resourceProfile.write_limit) > 0.9;
+export function ExecutionTimeline({
+  nodes,
+  resourceProfile,
+}: ExecutionTimelineProps) {
+  const isApproachingReadLimit =
+    resourceProfile &&
+    resourceProfile.read_limit > 0 &&
+    resourceProfile.read_bytes / resourceProfile.read_limit > 0.9;
+  const isApproachingWriteLimit =
+    resourceProfile &&
+    resourceProfile.write_limit > 0 &&
+    resourceProfile.write_bytes / resourceProfile.write_limit > 0.9;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -18,7 +27,7 @@ export function ExecutionTimeline({ nodes, resourceProfile }: ExecutionTimelineP
         <h2 className="text-xl font-semibold">Execution Timeline</h2>
         {(isApproachingReadLimit || isApproachingWriteLimit) && (
           <span className="px-3 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full flex items-center">
-            <span className="mr-1">⚠️</span> 
+            <span className="mr-1">⚠️</span>
             Storage IO Warning (Approaching limit)
           </span>
         )}
@@ -31,9 +40,7 @@ export function ExecutionTimeline({ nodes, resourceProfile }: ExecutionTimelineP
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <span className="text-xs font-mono text-gray-500">
-                  #{idx}
-                </span>
+                <span className="text-xs font-mono text-gray-500">#{idx}</span>
                 <span className="font-mono text-sm">
                   {node.node?.event_type || "Unknown"}
                 </span>

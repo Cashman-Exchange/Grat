@@ -32,9 +32,7 @@
         "description": "Review the contract source code for the error enum definition to understand the specific failure",
         "difficulty": "medium",
         "requires_upgrade": false,
-        "related_errors": [
-          "host.auth.not_authorized"
-        ],
+        "related_errors": ["host.auth.not_authorized"],
         "source_file": "soroban-env-host/src/host.rs"
       }
     ]

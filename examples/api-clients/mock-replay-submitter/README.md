@@ -12,6 +12,7 @@ Requires Node >= 18.
 Make sure the `grat-server` is actively running in another terminal (`pnpm --filter grat-server dev`).
 
 Run the script by providing a transaction hash:
+
 ```bash
 npm start <transaction_hash>
 ```

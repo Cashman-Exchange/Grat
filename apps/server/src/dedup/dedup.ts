@@ -49,9 +49,7 @@ export interface DedupAcquireResult {
  * - If NOT acquired → a duplicate is already in-flight. Call `waitForResult()`
  *   to coalesce on the original request's response.
  */
-export async function tryAcquire(
-  fp: string,
-): Promise<DedupAcquireResult> {
+export async function tryAcquire(fp: string): Promise<DedupAcquireResult> {
   const requestId = randomUUID();
   const dedupKey = `${DEDUP_PREFIX}${fp}`;
   const windowMs = config.cache.dedupWindowMs;
@@ -66,10 +64,7 @@ export async function tryAcquire(
  * waiters can pick it up.  The result is stored for the duration of the
  * dedup window so that late arrivals still find it.
  */
-export async function publishResult(
-  fp: string,
-  result: string,
-): Promise<void> {
+export async function publishResult(fp: string, result: string): Promise<void> {
   const resultKey = `${RESULT_PREFIX}${fp}`;
   const ttlSeconds = Math.ceil(config.cache.dedupWindowMs / 1000) + 2; // small padding
   await cacheSet(resultKey, result, ttlSeconds);

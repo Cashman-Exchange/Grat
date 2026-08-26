@@ -46,9 +46,8 @@ const {
   releaseConcurrency,
 } = await import("../budget");
 
-const { BudgetExceededError, ConcurrencyLimitError } = await import(
-  "../budget/errors"
-);
+const { BudgetExceededError, ConcurrencyLimitError } =
+  await import("../budget/errors");
 
 describe("Budget — status checks", () => {
   beforeEach(() => {

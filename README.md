@@ -102,10 +102,10 @@ Grat automatically identifies the kind of authorization used in each Soroban tra
 
 ### Supported Types
 
-| Type | Address Prefix | Description |
-|------|----------------|-------------|
-| **Ed25519** | `G...` | Classic Stellar account signing with its ed25519 key pair. |
-| **Smart Wallet** | `C...` | Deployed contract implementing custom signature verification (e.g., multi-sig, passkeys). |
+| Type             | Address Prefix | Description                                                                               |
+| ---------------- | -------------- | ----------------------------------------------------------------------------------------- |
+| **Ed25519**      | `G...`         | Classic Stellar account signing with its ed25519 key pair.                                |
+| **Smart Wallet** | `C...`         | Deployed contract implementing custom signature verification (e.g., multi-sig, passkeys). |
 
 ### Detection Logic
 
@@ -145,7 +145,6 @@ We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for de
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
-
 
 ---
 

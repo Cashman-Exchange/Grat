@@ -9,11 +9,13 @@ The WebSocket streaming implementation is designed to work alongside the existin
 ## Architecture Integration
 
 ### Current Architecture
+
 ```
 CLI Command → Replay Engine → Complete Trace → Output
 ```
 
 ### New Architecture (Streaming)
+
 ```
 CLI Command → WebSocket Server → Replay Engine → Stream Events → Client
                                        ↓
@@ -67,16 +69,16 @@ where
 {
     // Initialize sandbox
     let mut events = Vec::new();
-    
+
     // During execution, emit events immediately
     for event in sandbox.execute() {
         event_callback(event.clone());  // Stream to callback
         events.push(event);              // Also collect for final result
-        
+
         // Small delay to avoid overwhelming callback
         tokio::time::sleep(Duration::from_millis(1)).await;
     }
-    
+
     // Return complete result
     Ok(SandboxResult {
         success: true,
@@ -97,7 +99,7 @@ async fn stream_trace_replay(
     sender: broadcast::Sender<TraceStreamMessage>,
 ) -> anyhow::Result<()> {
     // ... existing code ...
-    
+
     // Use streaming API instead of batch
     let result = grat_core::replay::sandbox::execute_with_tracing_stream(
         &ledger_state,
@@ -111,7 +113,7 @@ async fn stream_trace_replay(
             });
         }
     ).await?;
-    
+
     // ... rest of code ...
 }
 ```
@@ -160,18 +162,18 @@ Add tests for the streaming functionality:
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_streaming_trace() {
         let (tx, mut rx) = broadcast::channel(100);
-        
+
         // Spawn streaming task
         tokio::spawn(async move {
             stream_trace_replay("test_hash", &NetworkConfig::testnet(), tx)
                 .await
                 .unwrap();
         });
-        
+
         // Verify messages received
         let mut count = 0;
         while let Ok(msg) = rx.recv().await {
@@ -183,7 +185,7 @@ mod tests {
                 _ => {}
             }
         }
-        
+
         assert!(count > 0);
     }
 }
@@ -206,18 +208,18 @@ async fn test_websocket_server() {
             &NetworkConfig::testnet(),
         ).await
     });
-    
+
     // Give server time to start
     tokio::time::sleep(Duration::from_millis(100)).await;
-    
+
     // Connect client
     let (ws_stream, _) = tokio_tungstenite::connect_async("ws://127.0.0.1:8081")
         .await
         .unwrap();
-    
+
     // Send trace request
     // ... test logic ...
-    
+
     server.abort();
 }
 ```
@@ -270,7 +272,7 @@ Configure Nginx to proxy WebSocket connections:
 server {
     listen 80;
     server_name grat.example.com;
-    
+
     location /ws {
         proxy_pass http://localhost:8080;
         proxy_http_version 1.1;
@@ -294,7 +296,7 @@ Support configuration via environment variables:
 pub struct ServeArgs {
     #[arg(long, short, default_value = "8080", env = "GRAT_WS_PORT")]
     pub port: u16,
-    
+
     #[arg(long, default_value = "127.0.0.1", env = "GRAT_WS_HOST")]
     pub host: String,
 }
@@ -411,15 +413,15 @@ impl RateLimiter {
         let now = Instant::now();
         let requests = self.requests.entry(client_id.to_string())
             .or_insert_with(Vec::new);
-        
+
         // Remove old requests
         requests.retain(|&t| now.duration_since(t) < self.window);
-        
+
         // Check limit
         if requests.len() >= self.max_requests {
             return false;
         }
-        
+
         requests.push(now);
         true
     }
@@ -435,14 +437,15 @@ Configure WebSocket URL based on environment:
 ```typescript
 // apps/web/src/config.ts
 export const config = {
-  wsUrl: process.env.NEXT_PUBLIC_WS_URL || 
-         (typeof window !== 'undefined' 
-           ? `ws://${window.location.hostname}:8080`
-           : 'ws://localhost:8080'),
+  wsUrl:
+    process.env.NEXT_PUBLIC_WS_URL ||
+    (typeof window !== "undefined"
+      ? `ws://${window.location.hostname}:8080`
+      : "ws://localhost:8080"),
 };
 
 // In TracePage
-import { config } from '@/config';
+import { config } from "@/config";
 const { trace, loading, requestTrace } = useTrace(config.wsUrl);
 ```
 
@@ -463,16 +466,19 @@ NEXT_PUBLIC_WS_URL=wss://grat.example.com/ws
 ### Common Issues
 
 1. **Port conflicts**: Check if port 8080 is already in use
+
    ```bash
    lsof -i :8080
    ```
 
 2. **Firewall blocking**: Ensure firewall allows WebSocket connections
+
    ```bash
    sudo ufw allow 8080/tcp
    ```
 
 3. **CORS issues**: Configure CORS headers if needed
+
    ```rust
    // Add CORS headers to WebSocket response
    ```
@@ -491,21 +497,25 @@ NEXT_PUBLIC_WS_URL=wss://grat.example.com/ws
 ## Migration Path
 
 ### Phase 1: Development (Current)
+
 - WebSocket server runs alongside existing CLI
 - Both batch and streaming APIs available
 - Testing with example client
 
 ### Phase 2: Beta Testing
+
 - Deploy to staging environment
 - Invite users to test streaming feature
 - Gather feedback and iterate
 
 ### Phase 3: Production
+
 - Deploy to production
 - Monitor performance and errors
 - Gradually increase traffic
 
 ### Phase 4: Optimization
+
 - Add caching for frequently traced transactions
 - Implement connection pooling
 - Add load balancing if needed
@@ -542,6 +552,7 @@ Track these metrics to measure integration success:
 ## Support
 
 For integration help:
+
 - Discord: emry_ss
 - Documentation: `docs/websocket-streaming.md`
 - Examples: `examples/websocket-client.js`

@@ -41,7 +41,7 @@ vi.mock("../redis", () => {
 
 // Re-import after mocking
 const { tryAcquire, publishResult, waitForResult } = await import("../dedup");
-const mockRedis = await import("../redis") as any;
+const mockRedis = (await import("../redis")) as any;
 
 describe("Dedup — fingerprinting", () => {
   it("produces the same hash for identical inputs", () => {

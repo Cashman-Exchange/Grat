@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Header, Footer, DecodeForm, ErrorCard, ContractErrorView } from "@/components";
+import {
+  Header,
+  Footer,
+  DecodeForm,
+  ErrorCard,
+  ContractErrorView,
+} from "@/components";
 import type { DiagnosticReport } from "@/lib/types";
 
 export default function DecodePage() {
@@ -21,7 +27,8 @@ export default function DecodePage() {
             Decode Transaction Errors
           </h1>
           <p className="text-slate-400 max-w-xl mx-auto text-base md:text-lg">
-            Diagnose cryptic Soroban execution failures, map raw error codes, and find suggested remedies instantly.
+            Diagnose cryptic Soroban execution failures, map raw error codes,
+            and find suggested remedies instantly.
           </p>
         </div>
 

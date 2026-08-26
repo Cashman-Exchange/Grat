@@ -10,7 +10,7 @@ Grat uses a WebSocket-based streaming architecture to provide real-time feedback
 1. **Establishment**: The web client connects to `grat serve`.
 2. **Request**: Client sends a JSON payload: `{"tx_hash": "abc123..."}`.
 3. **Execution**: The server spawns an independent trace task.
-4. **Streaming**: 
+4. **Streaming**:
    - `trace_started`: Initial event.
    - `trace_node`: Sent for every execution step (throttled to 5ms).
    - `resource_update`: Periodic progress on budget consumption.

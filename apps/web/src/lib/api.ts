@@ -20,14 +20,20 @@ export async function getHealth() {
  * Returns `null` when the session does not exist or has expired (HTTP 404).
  * Throws for any other non-OK status.
  */
-export async function getSession(sessionId: string): Promise<SessionResponse | null> {
-  const res = await fetch(`${API_BASE}/api/session/${encodeURIComponent(sessionId)}`);
+export async function getSession(
+  sessionId: string,
+): Promise<SessionResponse | null> {
+  const res = await fetch(
+    `${API_BASE}/api/session/${encodeURIComponent(sessionId)}`,
+  );
 
   if (res.status === 404) return null;
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Failed to fetch session ${sessionId}: ${res.status} ${body}`);
+    throw new Error(
+      `Failed to fetch session ${sessionId}: ${res.status} ${body}`,
+    );
   }
 
   return res.json() as Promise<SessionResponse>;

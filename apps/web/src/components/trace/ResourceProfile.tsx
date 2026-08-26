@@ -11,7 +11,12 @@ interface ResourceProfileProps {
   };
 }
 
-function ResourceBar({ label, used, limit, format }: {
+function ResourceBar({
+  label,
+  used,
+  limit,
+  format,
+}: {
   label: string;
   used: number;
   limit: number;
@@ -31,8 +36,13 @@ function ResourceBar({ label, used, limit, format }: {
       </div>
       <div className="w-full bg-gray-200 rounded-full h-4">
         <div
-          className={`h-4 rounded-full transition-all duration-300 ${percentage > 90 ? "bg-red-500" : percentage > 70 ? "bg-yellow-500" : "bg-green-500"
-            }`}
+          className={`h-4 rounded-full transition-all duration-300 ${
+            percentage > 90
+              ? "bg-red-500"
+              : percentage > 70
+                ? "bg-yellow-500"
+                : "bg-green-500"
+          }`}
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
@@ -78,10 +88,11 @@ export function ResourceProfile({ profile }: ResourceProfileProps) {
         />
       </div>
 
-      {(profile.cpu_limit > 0 && (profile.cpu_used / profile.cpu_limit) > 0.9) && (
+      {profile.cpu_limit > 0 && profile.cpu_used / profile.cpu_limit > 0.9 && (
         <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
           <p className="text-sm text-yellow-800">
-            Resource usage is approaching limits. Consider optimizing contract code.
+            Resource usage is approaching limits. Consider optimizing contract
+            code.
           </p>
         </div>
       )}

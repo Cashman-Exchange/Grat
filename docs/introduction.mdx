@@ -5,7 +5,7 @@ description: "Soroban transaction debugger: from cryptic error to root cause in 
 icon: "hand-wave"
 ---
 
-**Grat** turns opaque Soroban errors into plain English, replays historical transactions against reconstructed ledger state, and lets you step through contract execution with full time-travel debugging. 
+**Grat** turns opaque Soroban errors into plain English, replays historical transactions against reconstructed ledger state, and lets you step through contract execution with full time-travel debugging.
 
 It handles everything from decoding `Error(Contract, #3)` into the actual enum name defined in the contract, to showing you exactly which host function call consumed the last byte of your CPU budget.
 
@@ -33,9 +33,9 @@ Grat is organized into three tiers of depth, each building on the one before it.
 
 ## Supported Networks
 
-| Network | Decode (Tier 1) | Replay (Tier 2–3) | Source |
-|---|---|---|---|
-| Mainnet | Yes | Yes | Soroban RPC + History Archives |
-| Testnet | Yes | Yes | Soroban RPC + History Archives |
-| Futurenet | Yes | Limited | Soroban RPC (archive coverage varies) |
-| Custom | Yes | Yes | User-configured RPC endpoint + archives |
+| Network   | Decode (Tier 1) | Replay (Tier 2–3) | Source                                  |
+| --------- | --------------- | ----------------- | --------------------------------------- |
+| Mainnet   | Yes             | Yes               | Soroban RPC + History Archives          |
+| Testnet   | Yes             | Yes               | Soroban RPC + History Archives          |
+| Futurenet | Yes             | Limited           | Soroban RPC (archive coverage varies)   |
+| Custom    | Yes             | Yes               | User-configured RPC endpoint + archives |

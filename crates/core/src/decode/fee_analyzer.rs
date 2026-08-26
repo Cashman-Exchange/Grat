@@ -18,9 +18,11 @@ pub fn analyze_fee_breakdown(tx_data: &serde_json::Value) -> FeeBreakdown {
 
     let (non_refundable_fee, refundable_resource_fee, rent_fee, has_soroban_resource_fee) = tx_data
         .get("resourceFee")
-        .and_then(|v| v.as_object())
-        .map(parse_resource_fee_object)
-        .unwrap_or_else(|| parse_resource_fee_from_meta(tx_data));
+        .and_then(serde_json::Value::as_object)
+        .map_or_else(
+            || parse_resource_fee_from_meta(tx_data),
+            parse_resource_fee_object,
+        );
 
     let resource_fee = if has_soroban_resource_fee {
         non_refundable_fee + refundable_resource_fee + rent_fee
@@ -30,7 +32,7 @@ pub fn analyze_fee_breakdown(tx_data: &serde_json::Value) -> FeeBreakdown {
 
     let inclusion_fee = tx_data
         .get("inclusionFee")
-        .and_then(|v| v.as_i64())
+        .and_then(serde_json::Value::as_i64)
         .unwrap_or_else(|| {
             if resource_fee > 0 {
                 total_fee.saturating_sub(resource_fee)
@@ -86,15 +88,15 @@ fn parse_resource_fee_object(
     (
         resource_fee_obj
             .get("totalNonRefundableResourceFeeCharged")
-            .and_then(|v| v.as_i64())
+            .and_then(serde_json::Value::as_i64)
             .unwrap_or(0),
         resource_fee_obj
             .get("totalRefundableResourceFeeCharged")
-            .and_then(|v| v.as_i64())
+            .and_then(serde_json::Value::as_i64)
             .unwrap_or(0),
         resource_fee_obj
             .get("rentFeeCharged")
-            .and_then(|v| v.as_i64())
+            .and_then(serde_json::Value::as_i64)
             .unwrap_or(0),
         true,
     )

@@ -48,7 +48,7 @@ fn convert(val: &ScVal, depth: usize) -> Value {
 
     match val {
         ScVal::Bool(b) => json!(b),
-        ScVal::Void => Value::Null,
+        ScVal::Void | ScVal::Vec(None) | ScVal::Map(None) => Value::Null,
         ScVal::Error(err) => scerror_to_json(err),
         ScVal::U32(v) => json!(v),
         ScVal::I32(v) => json!(v),
@@ -66,9 +66,7 @@ fn convert(val: &ScVal, depth: usize) -> Value {
         ScVal::Vec(Some(items)) => {
             Value::Array(items.iter().map(|item| convert(item, depth + 1)).collect())
         }
-        ScVal::Vec(None) => Value::Null,
         ScVal::Map(Some(entries)) => scmap_to_json(entries, depth + 1),
-        ScVal::Map(None) => Value::Null,
         ScVal::Address(address) => json!(scaddress_to_strkey(address)),
         ScVal::ContractInstance(instance) => contract_instance_to_json(instance, depth),
         ScVal::LedgerKeyContractInstance => json!("LedgerKeyContractInstance"),
@@ -127,21 +125,21 @@ fn key_string_from_value(value: &Value) -> String {
 }
 
 fn scerror_to_json(err: &ScError) -> Value {
-    fn code_str(code: &ScErrorCode) -> String {
+    fn code_str(code: ScErrorCode) -> String {
         format!("{code:?}")
     }
 
     match err {
         ScError::Contract(code) => json!({ "type": "Contract", "code": code }),
-        ScError::WasmVm(code) => json!({ "type": "WasmVm", "code": code_str(code) }),
-        ScError::Context(code) => json!({ "type": "Context", "code": code_str(code) }),
-        ScError::Storage(code) => json!({ "type": "Storage", "code": code_str(code) }),
-        ScError::Object(code) => json!({ "type": "Object", "code": code_str(code) }),
-        ScError::Crypto(code) => json!({ "type": "Crypto", "code": code_str(code) }),
-        ScError::Events(code) => json!({ "type": "Events", "code": code_str(code) }),
-        ScError::Budget(code) => json!({ "type": "Budget", "code": code_str(code) }),
-        ScError::Value(code) => json!({ "type": "Value", "code": code_str(code) }),
-        ScError::Auth(code) => json!({ "type": "Auth", "code": code_str(code) }),
+        ScError::WasmVm(code) => json!({ "type": "WasmVm", "code": code_str(*code) }),
+        ScError::Context(code) => json!({ "type": "Context", "code": code_str(*code) }),
+        ScError::Storage(code) => json!({ "type": "Storage", "code": code_str(*code) }),
+        ScError::Object(code) => json!({ "type": "Object", "code": code_str(*code) }),
+        ScError::Crypto(code) => json!({ "type": "Crypto", "code": code_str(*code) }),
+        ScError::Events(code) => json!({ "type": "Events", "code": code_str(*code) }),
+        ScError::Budget(code) => json!({ "type": "Budget", "code": code_str(*code) }),
+        ScError::Value(code) => json!({ "type": "Value", "code": code_str(*code) }),
+        ScError::Auth(code) => json!({ "type": "Auth", "code": code_str(*code) }),
     }
 }
 

@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { config } from "../config";
-import { fingerprint, tryAcquire, publishResult, waitForResult } from "../dedup";
+import {
+  fingerprint,
+  tryAcquire,
+  publishResult,
+  waitForResult,
+} from "../dedup";
 import {
   assertBudgetAvailable,
   recordUsage,
@@ -27,8 +32,14 @@ interface ChatCompletion {
  * Abstracted so the provider can be swapped by changing `config.ai.apiBaseUrl`.
  */
 async function callLLM(reportJson: string): Promise<ChatCompletion> {
-  const { apiKey, apiBaseUrl, model, maxTokensPerRequest, temperature, timeoutMs } =
-    config.ai;
+  const {
+    apiKey,
+    apiBaseUrl,
+    model,
+    maxTokensPerRequest,
+    temperature,
+    timeoutMs,
+  } = config.ai;
 
   if (!apiKey) {
     throw new Error(
@@ -61,12 +72,10 @@ async function callLLM(reportJson: string): Promise<ChatCompletion> {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(
-        `AI provider returned HTTP ${response.status}: ${text}`,
-      );
+      throw new Error(`AI provider returned HTTP ${response.status}: ${text}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       choices: { message: { content: string } }[];
       usage?: { total_tokens: number };
     };

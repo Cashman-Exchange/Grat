@@ -7,10 +7,7 @@ import { config } from "../config";
 // Key schema: grat:cache:{type}:{promptVersion}:{fingerprint}
 // ---------------------------------------------------------------------------
 
-function cacheKey(
-  type: CacheEntryType,
-  fingerprint: string,
-): string {
+function cacheKey(type: CacheEntryType, fingerprint: string): string {
   return `grat:cache:${type}:${PROMPT_VERSION_HASH}:${fingerprint}`;
 }
 
@@ -18,10 +15,7 @@ function cacheKey(
  * Derive a partial key pattern that matches all prompt-versions for a given
  * type + fingerprint.  Used for version-independent invalidation.
  */
-function allVersionsPattern(
-  type: CacheEntryType,
-  fingerprint: string,
-): string {
+function allVersionsPattern(type: CacheEntryType, fingerprint: string): string {
   return `grat:cache:${type}:*:${fingerprint}`;
 }
 

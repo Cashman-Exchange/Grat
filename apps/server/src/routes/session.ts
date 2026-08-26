@@ -10,9 +10,9 @@ const createSessionSchema = {
     type: "object",
     required: ["txHash", "network", "wsUrl"],
     properties: {
-      txHash:   { type: "string", minLength: 1 },
-      network:  { type: "string", minLength: 1 },
-      wsUrl:    { type: "string", minLength: 1 },
+      txHash: { type: "string", minLength: 1 },
+      network: { type: "string", minLength: 1 },
+      wsUrl: { type: "string", minLength: 1 },
     },
   },
 } as const;
@@ -44,11 +44,11 @@ const updateSnapshotSchema = {
         required: ["ledger_sequence", "nodes", "state_diff", "completed"],
         properties: {
           ledger_sequence: { type: "number" },
-          nodes:           { type: "array" },
+          nodes: { type: "array" },
           resource_profile: { type: ["object", "null"] },
-          state_diff:      { type: "array" },
-          completed:       { type: "boolean" },
-          error:           { type: "string" },
+          state_diff: { type: "array" },
+          completed: { type: "boolean" },
+          error: { type: "string" },
         },
       },
     },
@@ -95,10 +95,10 @@ export async function sessionRoutes(app: FastifyInstance) {
 
     // Return the full meta to the CLI (token is only revealed on creation).
     return reply.status(201).send({
-      sessionId:  meta.sessionId,
-      token:      meta.token,
-      wsUrl:      meta.wsUrl,
-      createdAt:  meta.createdAt,
+      sessionId: meta.sessionId,
+      token: meta.token,
+      wsUrl: meta.wsUrl,
+      createdAt: meta.createdAt,
     });
   });
 
@@ -109,26 +109,30 @@ export async function sessionRoutes(app: FastifyInstance) {
   // ------------------------------------------------------------------
   app.get<{
     Params: { sessionId: string };
-  }>("/session/:sessionId", { schema: sessionIdParamSchema }, async (request, reply) => {
-    const { sessionId } = request.params;
+  }>(
+    "/session/:sessionId",
+    { schema: sessionIdParamSchema },
+    async (request, reply) => {
+      const { sessionId } = request.params;
 
-    const meta = await store.get(sessionId);
+      const meta = await store.get(sessionId);
 
-    if (!meta) {
-      return reply.status(404).send({
-        status: "not_found",
-        message: `Session '${sessionId}' does not exist or has expired.`,
+      if (!meta) {
+        return reply.status(404).send({
+          status: "not_found",
+          message: `Session '${sessionId}' does not exist or has expired.`,
+        });
+      }
+
+      // Strip the secret token before sending to the frontend.
+      const { token: _omit, ...publicMeta } = meta;
+
+      return reply.send({
+        status: "active",
+        session: publicMeta,
       });
-    }
-
-    // Strip the secret token before sending to the frontend.
-    const { token: _omit, ...publicMeta } = meta;
-
-    return reply.send({
-      status: "active",
-      session: publicMeta,
-    });
-  });
+    },
+  );
 
   // ------------------------------------------------------------------
   // PATCH /api/session/:sessionId/snapshot
@@ -139,7 +143,7 @@ export async function sessionRoutes(app: FastifyInstance) {
   // ------------------------------------------------------------------
   app.patch<{
     Params: { sessionId: string };
-    Body:   { snapshot: TraceSnapshot };
+    Body: { snapshot: TraceSnapshot };
   }>(
     "/session/:sessionId/snapshot",
     { schema: updateSnapshotSchema },
@@ -149,7 +153,9 @@ export async function sessionRoutes(app: FastifyInstance) {
 
       const token = extractBearer(request.headers.authorization);
       if (!token) {
-        return reply.status(401).send({ error: "Missing Authorization header" });
+        return reply
+          .status(401)
+          .send({ error: "Missing Authorization header" });
       }
 
       const valid = await store.verifyToken(sessionId, token);
@@ -166,7 +172,7 @@ export async function sessionRoutes(app: FastifyInstance) {
       }
 
       return reply.send({ status: "ok" });
-    }
+    },
   );
 
   // ------------------------------------------------------------------
@@ -185,7 +191,9 @@ export async function sessionRoutes(app: FastifyInstance) {
 
       const token = extractBearer(request.headers.authorization);
       if (!token) {
-        return reply.status(401).send({ error: "Missing Authorization header" });
+        return reply
+          .status(401)
+          .send({ error: "Missing Authorization header" });
       }
 
       const valid = await store.verifyToken(sessionId, token);
@@ -202,7 +210,7 @@ export async function sessionRoutes(app: FastifyInstance) {
       }
 
       return reply.send({ status: "ok", updatedAt: new Date().toISOString() });
-    }
+    },
   );
 
   // ------------------------------------------------------------------
@@ -220,7 +228,9 @@ export async function sessionRoutes(app: FastifyInstance) {
 
       const token = extractBearer(request.headers.authorization);
       if (!token) {
-        return reply.status(401).send({ error: "Missing Authorization header" });
+        return reply
+          .status(401)
+          .send({ error: "Missing Authorization header" });
       }
 
       const valid = await store.verifyToken(sessionId, token);
@@ -237,6 +247,6 @@ export async function sessionRoutes(app: FastifyInstance) {
       }
 
       return reply.status(204).send();
-    }
+    },
   );
 }

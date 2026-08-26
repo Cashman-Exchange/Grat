@@ -17,7 +17,10 @@ export default function ContractErrorView() {
   const [customCode, setCustomCode] = useState<string>("");
   const [isCustomMode, setIsCustomMode] = useState<boolean>(false);
 
-  const standardContractErrors = contractTaxonomy as Record<string, TaxonomyEntry>;
+  const standardContractErrors = contractTaxonomy as Record<
+    string,
+    TaxonomyEntry
+  >;
   const activeError = isCustomMode
     ? standardContractErrors[customCode]
     : standardContractErrors[String(selectedCode)];
@@ -39,7 +42,8 @@ export default function ContractErrorView() {
       </div>
 
       <p className="text-sm text-slate-400 mb-6">
-        Soroban smart contracts return numeric codes when they revert. Select a standard code or enter a custom code to view its details.
+        Soroban smart contracts return numeric codes when they revert. Select a
+        standard code or enter a custom code to view its details.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -120,7 +124,10 @@ export default function ContractErrorView() {
               </h4>
               <ul className="space-y-2">
                 {activeError.common_causes.map((cause, i) => (
-                  <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
+                  <li
+                    key={i}
+                    className="text-sm text-slate-300 flex items-start gap-2"
+                  >
                     <span className="text-red-400 mt-1">•</span>
                     <span>{cause.description}</span>
                   </li>
@@ -134,7 +141,10 @@ export default function ContractErrorView() {
               </h4>
               <ul className="space-y-2">
                 {activeError.suggested_fixes.map((fix, i) => (
-                  <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
+                  <li
+                    key={i}
+                    className="text-sm text-slate-300 flex items-start gap-2"
+                  >
                     <span className="text-emerald-400 mt-1">✓</span>
                     <span>{fix.description}</span>
                   </li>
@@ -176,7 +186,10 @@ export default function ContractErrorView() {
               Detailed Explanation
             </h4>
             <p className="text-slate-400 text-sm leading-relaxed">
-              This is a custom contract-defined error code. Custom error codes are defined by the contract author inside their {"`#[contracterror]`"} enum. To map this code to its name, you need the contract{"'s"} WASM specification or source code.
+              This is a custom contract-defined error code. Custom error codes
+              are defined by the contract author inside their{" "}
+              {"`#[contracterror]`"} enum. To map this code to its name, you
+              need the contract{"'s"} WASM specification or source code.
             </p>
           </div>
 
@@ -188,7 +201,10 @@ export default function ContractErrorView() {
               <ul className="space-y-2">
                 <li className="text-sm text-slate-300 flex items-start gap-2">
                   <span className="text-red-400 mt-1">•</span>
-                  <span>A business logic requirement or assertion in the contract{"'s"} code was not met.</span>
+                  <span>
+                    A business logic requirement or assertion in the contract
+                    {"'s"} code was not met.
+                  </span>
                 </li>
               </ul>
             </div>
@@ -200,11 +216,17 @@ export default function ContractErrorView() {
               <ul className="space-y-2">
                 <li className="text-sm text-slate-300 flex items-start gap-2">
                   <span className="text-emerald-400 mt-1">✓</span>
-                  <span>Locate the source code of the contract and find its {"`#[contracterror]`"} enum.</span>
+                  <span>
+                    Locate the source code of the contract and find its{" "}
+                    {"`#[contracterror]`"} enum.
+                  </span>
                 </li>
                 <li className="text-sm text-slate-300 flex items-start gap-2">
                   <span className="text-emerald-400 mt-1">✓</span>
-                  <span>Match the numeric code {customCode} with the integer values assigned to the enum variants.</span>
+                  <span>
+                    Match the numeric code {customCode} with the integer values
+                    assigned to the enum variants.
+                  </span>
                 </li>
               </ul>
             </div>

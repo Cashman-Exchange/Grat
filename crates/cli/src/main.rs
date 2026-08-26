@@ -2,6 +2,7 @@ mod commands;
 mod config;
 mod output;
 mod tui;
+mod ui;
 mod version_check;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
@@ -43,12 +44,17 @@ struct Cli {
 
     #[arg(long, global = true)]
     no_color: bool,
+
+    #[arg(long, global = true, help = "Disable network requests for updates")]
+    offline: bool,
 }
 
 #[derive(Subcommand)]
 enum Commands {
     #[command(next_help_heading = "Analysis Commands")]
     Decode(commands::decode::DecodeArgs),
+
+    Batch(commands::batch::BatchArgs),
 
     Inspect(commands::inspect::InspectArgs),
 
@@ -88,6 +94,9 @@ async fn main() -> anyhow::Result<()> {
     let version: &'static str = Box::leak(build_version().into_boxed_str());
     let matches = Cli::command().version(version).get_matches();
     let cli = Cli::from_arg_matches(&matches)?;
+
+    let _taxonomy_update_handle =
+        tokio::spawn(grat_core::taxonomy::updater::check_and_update(cli.offline));
     let loaded_config = config::ConfigManager::new()
         .and_then(|manager| manager.load())
         .ok();
@@ -127,6 +136,7 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Decode(args) => commands::decode::run(args, &network, &cli.output, save).await?,
+        Commands::Batch(args) => commands::batch::run(args, &network).await?,
         Commands::Inspect(args) => {
             commands::inspect::run(args, &network, &cli.output, save).await?;
         }

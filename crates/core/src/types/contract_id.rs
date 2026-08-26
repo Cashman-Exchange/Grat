@@ -42,10 +42,8 @@ impl TryFrom<&str> for ContractId {
 fn validate_contract_id(raw: &str) -> Result<(), GratError> {
     if raw.len() != CONTRACT_ID_LEN {
         return Err(GratError::InvalidContractId(format!(
-            "expected {} characters, got {} (received '{}')",
-            CONTRACT_ID_LEN,
-            raw.len(),
-            raw
+            "expected {CONTRACT_ID_LEN} characters, got {} (received '{raw}')",
+            raw.len()
         )));
     }
 
@@ -54,20 +52,19 @@ fn validate_contract_id(raw: &str) -> Result<(), GratError> {
         b'G' => {
             return Err(GratError::InvalidContractId(format!(
                 "Must start with 'C', but received 'G' — this looks like an \
-                 Account ID, not a Contract ID: '{}'",
-                raw
+                 Account ID, not a Contract ID: '{raw}'"
             )))
         }
         other => {
             return Err(GratError::InvalidContractId(format!(
-                "Must start with 'C', but received '{}': '{}'",
-                other as char, raw
+                "Must start with 'C', but received '{}': '{raw}'",
+                other as char
             )))
         }
     }
 
     stellar_strkey::Contract::from_string(raw).map_err(|e| {
-        GratError::InvalidContractId(format!("'{}' is not valid StrKey-encoded data: {}", raw, e))
+        GratError::InvalidContractId(format!("'{raw}' is not valid StrKey-encoded data: {e}"))
     })?;
 
     Ok(())
@@ -111,7 +108,7 @@ mod tests {
         } else {
             'A'
         };
-        raw.replace_range(last..last + 1, &corrupted_char.to_string());
+        raw.replace_range(last..=last, &corrupted_char.to_string());
         assert!(ContractId::new(raw).is_err());
     }
 

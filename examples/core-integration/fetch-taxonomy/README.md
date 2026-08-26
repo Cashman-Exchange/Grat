@@ -29,6 +29,7 @@ pnpm install
 ```bash
 npm start
 ```
+
 This will read the TOML file from the `crates/core` directory, flatten it, and write the resulting dictionary to `taxonomy.json`.
 
 ## Running the Tests

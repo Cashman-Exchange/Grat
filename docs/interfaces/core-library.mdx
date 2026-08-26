@@ -8,14 +8,18 @@ icon: "cube"
 The Grat core engine is published as a Rust crate and a WASM package.
 
 ## Rust Usage
+
 Add `grat-core` to your `Cargo.toml`:
+
 ```toml
 [dependencies]
 grat-core = "0.1.0"
 ```
 
 ## WASM Usage
+
 Embed Grat into your JavaScript/TypeScript applications:
+
 ```bash
 npm install @grat-soroban/wasm
 ```
@@ -54,6 +58,7 @@ println!("{}", err.summary());
 ```
 
 **Behaviour guarantees:**
+
 - Every variant returns a non-empty string — no error is ever silent.
 - Known code `0` summaries are under 120 characters.
 - Unknown codes within known categories fall back to a formatted message including the code number.

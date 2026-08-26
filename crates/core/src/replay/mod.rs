@@ -4,9 +4,11 @@ pub mod sandbox;
 pub mod state;
 pub mod trace;
 
+use crate::decode::auth::scval_to_readable_string;
+use crate::decode::walk_diagnostic_events;
 use crate::error::GratResult;
 use crate::types::config::NetworkConfig;
-use crate::types::trace::ExecutionTrace;
+use crate::types::trace::{DiagnosticEvent, ExecutionTrace};
 
 pub async fn replay_transaction(
     tx_hash: &str,
@@ -22,6 +24,20 @@ pub async fn replay_transaction(
 
     let profile = profiler::generate_profile(&raw_trace, &state_diff)?;
 
+    let diagnostic_events = walk_diagnostic_events(&raw_trace.diagnostic_events)
+        .into_iter()
+        .enumerate()
+        .map(|(timeline_position, event)| DiagnosticEvent {
+            event_type: event.kind.to_string(),
+            topics: event.topics.iter().map(scval_to_readable_string).collect(),
+            data: std::collections::HashMap::from([(
+                "value".to_string(),
+                scval_to_readable_string(&event.data),
+            )]),
+            timeline_position,
+        })
+        .collect();
+
     Ok(ExecutionTrace {
         tx_hash: tx_hash.to_string(),
         ledger_sequence: ledger_state.ledger_sequence,
@@ -29,6 +45,6 @@ pub async fn replay_transaction(
         invocations: trace_tree,
         state_diff,
         resource_profile: profile,
-        diagnostic_events: Vec::new(),
+        diagnostic_events,
     })
 }

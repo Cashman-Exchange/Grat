@@ -22,8 +22,8 @@ export const config = {
 
   // Cache TTLs (seconds)
   cache: {
-    decodeTtl: Number(process.env.CACHE_DECODE_TTL) || 86_400,     // 24h
-    profileTtl: Number(process.env.CACHE_PROFILE_TTL) || 3_600,    // 1h
-    dedupWindowMs: Number(process.env.DEDUP_WINDOW_MS) || 10_000,  // 10s
+    decodeTtl: Number(process.env.CACHE_DECODE_TTL) || 86_400, // 24h
+    profileTtl: Number(process.env.CACHE_PROFILE_TTL) || 3_600, // 1h
+    dedupWindowMs: Number(process.env.DEDUP_WINDOW_MS) || 10_000, // 10s
   },
 };

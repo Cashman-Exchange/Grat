@@ -14,6 +14,7 @@ pnpm install
 Make sure the `grat-server` is actively running in another terminal (`pnpm --filter grat-server dev`).
 
 Run the script by providing a mock or real transaction hash:
+
 ```bash
 pnpm start <transaction_hash>
 ```

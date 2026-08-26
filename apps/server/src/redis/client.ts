@@ -79,20 +79,14 @@ export async function acquireLock(
 /**
  * INCRBY and return new value.
  */
-export async function incrBy(
-  key: string,
-  amount: number,
-): Promise<number> {
+export async function incrBy(key: string, amount: number): Promise<number> {
   return getRedis().incrby(key, amount);
 }
 
 /**
  * DECRBY and return new value.
  */
-export async function decrBy(
-  key: string,
-  amount: number,
-): Promise<number> {
+export async function decrBy(key: string, amount: number): Promise<number> {
   return getRedis().decrby(key, amount);
 }
 

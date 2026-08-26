@@ -16,6 +16,7 @@ To replay a transaction accurately, Grat must reconstruct the exact ledger state
 ## The Tracing Sandbox
 
 Grat executes the transaction in a modified Soroban sandbox.
+
 - It intercepts every host function call.
 - It records every storage read/write.
 - It tracks CPU and memory consumption at every step.

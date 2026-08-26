@@ -85,10 +85,11 @@ export function useTrace(wsUrl?: string) {
     },
   };
 
-  const { connected, error: wsError, requestTrace: wsRequestTrace } = useWebSocket(
-    wsUrl || "",
-    callbacks
-  );
+  const {
+    connected,
+    error: wsError,
+    requestTrace: wsRequestTrace,
+  } = useWebSocket(wsUrl || "", callbacks);
 
   const requestTrace = useCallback(
     (txHash: string, network: string) => {
@@ -99,15 +100,14 @@ export function useTrace(wsUrl?: string) {
         setLoading(false);
       }
     },
-    [wsUrl, connected, wsRequestTrace]
+    [wsUrl, connected, wsRequestTrace],
   );
 
-  return { 
-    trace, 
-    loading, 
-    requestTrace, 
+  return {
+    trace,
+    loading,
+    requestTrace,
     streaming: !!wsUrl && connected,
     streamError: wsError,
   };
 }
-

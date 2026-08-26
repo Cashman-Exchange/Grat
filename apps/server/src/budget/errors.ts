@@ -11,11 +11,10 @@ export class BudgetExceededError extends Error {
     dailyRemaining: number;
     resetAt: Date;
   }) {
-    const which =
-      opts.hourlyRemaining <= 0 ? "hourly" : "daily";
+    const which = opts.hourlyRemaining <= 0 ? "hourly" : "daily";
     super(
       `AI token budget exceeded: ${which} limit reached. ` +
-      `Resets at ${opts.resetAt.toISOString()}.`,
+        `Resets at ${opts.resetAt.toISOString()}.`,
     );
     this.name = "BudgetExceededError";
     this.hourlyRemaining = opts.hourlyRemaining;
@@ -34,7 +33,7 @@ export class ConcurrencyLimitError extends Error {
   constructor(currentActive: number, limit: number) {
     super(
       `AI concurrency limit reached: ${currentActive}/${limit} requests in-flight. ` +
-      `Retry after an in-flight request completes.`,
+        `Retry after an in-flight request completes.`,
     );
     this.name = "ConcurrencyLimitError";
     this.currentActive = currentActive;

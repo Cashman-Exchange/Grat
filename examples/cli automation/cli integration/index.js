@@ -14,20 +14,20 @@
  *   node "examples/cli automation/cli integration/index.js" decode <tx-hash>
  */
 
-'use strict';
+"use strict";
 
-const { execFile } = require('child_process');
-const { promisify } = require('util');
-const path = require('path');
+const { execFile } = require("child_process");
+const { promisify } = require("util");
+const path = require("path");
 
 const execFileAsync = promisify(execFile);
 
 // ─── ANSI colour helpers ────────────────────────────────────────────────────
-const RESET  = '\x1b[0m';
-const YELLOW = '\x1b[33m';
-const RED    = '\x1b[31m';
-const BOLD   = '\x1b[1m';
-const DIM    = '\x1b[2m';
+const RESET = "\x1b[0m";
+const YELLOW = "\x1b[33m";
+const RED = "\x1b[31m";
+const BOLD = "\x1b[1m";
+const DIM = "\x1b[2m";
 
 /**
  * GratCliError
@@ -48,11 +48,11 @@ class GratCliError extends Error {
   constructor({ rustMessage, exitCode, durationMs, command }) {
     super(rustMessage);
 
-    this.name        = 'GratCliError';
+    this.name = "GratCliError";
     this.rustMessage = rustMessage;
-    this.exitCode    = exitCode;
-    this.durationMs  = durationMs;
-    this.command     = command;
+    this.exitCode = exitCode;
+    this.durationMs = durationMs;
+    this.command = command;
 
     // Remove the Node.js-generated stack so it does not pollute the output.
     // Developers should look at rustMessage, not the JS call-site.
@@ -64,25 +64,25 @@ class GratCliError extends Error {
    * @returns {string}
    */
   format() {
-    const ruler = `${YELLOW}${'─'.repeat(60)}${RESET}`;
+    const ruler = `${YELLOW}${"─".repeat(60)}${RESET}`;
     return [
-      '',
+      "",
       ruler,
       `${BOLD}${YELLOW}⚠  Prism CLI failed (exit code ${this.exitCode})${RESET}`,
       ruler,
-      '',
+      "",
       `${BOLD}Command :${RESET}  ${this.command}`,
       `${BOLD}Duration:${RESET}  ${this.durationMs} ms`,
-      '',
+      "",
       `${BOLD}${RED}Rust error output:${RESET}`,
       this.rustMessage
-        .split('\n')
-        .map(line => `  ${DIM}│${RESET} ${line}`)
-        .join('\n'),
-      '',
+        .split("\n")
+        .map((line) => `  ${DIM}│${RESET} ${line}`)
+        .join("\n"),
+      "",
       ruler,
-      '',
-    ].join('\n');
+      "",
+    ].join("\n");
   }
 }
 
@@ -93,14 +93,14 @@ class GratCliError extends Error {
  * Prefers the release build; falls back to the debug build for development.
  */
 function resolveBinaryPath() {
-  const repoRoot = path.resolve(__dirname, '..', '..', '..');
+  const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
   // Allow an environment-variable override for CI or custom install paths.
   if (process.env.PRISM_BIN) {
     return process.env.PRISM_BIN;
   }
 
-  return path.join(repoRoot, 'target', 'release', 'prism');
+  return path.join(repoRoot, "target", "release", "prism");
 }
 
 // ─── Core execution wrapper ──────────────────────────────────────────────────
@@ -118,14 +118,14 @@ function resolveBinaryPath() {
  * @throws {GratCliError}
  */
 async function runPrism(args = []) {
-  const binary  = resolveBinaryPath();
-  const command = `${binary} ${args.join(' ')}`;
-  const start   = Date.now();
+  const binary = resolveBinaryPath();
+  const command = `${binary} ${args.join(" ")}`;
+  const start = Date.now();
 
   try {
     const { stdout, stderr } = await execFileAsync(binary, args, {
       // Capture both streams as UTF-8 strings so no output is lost.
-      encoding: 'utf8',
+      encoding: "utf8",
       // Give long-running operations up to 5 minutes before we time out.
       timeout: 5 * 60 * 1000,
       // Soroban envelope decodes can emit multi-megabyte JSON payloads, while
@@ -139,7 +139,7 @@ async function runPrism(args = []) {
     // Rust can write diagnostic or warning logs to stderr even on a
     // successful (exit code 0) run. Surface them instead of dropping them so
     // no crucial output is lost during the execution lifecycle.
-    const diagnostics = (stderr || '').trim();
+    const diagnostics = (stderr || "").trim();
     if (diagnostics) {
       console.warn(diagnostics);
     }
@@ -151,9 +151,10 @@ async function runPrism(args = []) {
     // `execFile` rejects with an error that exposes `.code` (exit code) and
     // `.stderr` (the raw text Rust wrote to stderr). Extract both and wrap
     // them in a GratCliError so the actual Rust panic message is surfaced.
-    const exitCode    = typeof err.code === 'number' ? err.code : 1;
-    const stderrText  = (err.stderr || '').trim();
-    const rustMessage = stderrText || err.message || 'Unknown error from Rust binary';
+    const exitCode = typeof err.code === "number" ? err.code : 1;
+    const stderrText = (err.stderr || "").trim();
+    const rustMessage =
+      stderrText || err.message || "Unknown error from Rust binary";
 
     throw new GratCliError({
       rustMessage,
@@ -173,7 +174,7 @@ async function main() {
   if (args.length === 0) {
     console.error(
       `${YELLOW}Usage: node "examples/cli automation/cli integration/index.js" <command> [args...]${RESET}\n` +
-      `${DIM}Example: node ... decode <tx-hash>${RESET}`,
+        `${DIM}Example: node ... decode <tx-hash>${RESET}`,
     );
     process.exit(1);
   }

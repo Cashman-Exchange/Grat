@@ -34,11 +34,15 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 
+# Cryptography
+sha2 = { workspace = true }
+
 # WASM Processing
 wasmparser = { workspace = true }
 
 # Storage & Caching
 redb = { workspace = true }
+sled = { workspace = true }
 directories = { workspace = true }
 flate2 = { workspace = true }
 

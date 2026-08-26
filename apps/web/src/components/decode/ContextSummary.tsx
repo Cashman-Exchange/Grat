@@ -89,8 +89,9 @@ function FeeBreakdownPanel({ fee }: { fee: FeeBreakdown }) {
       </div>
       {fee.resource_fee > 0 && (
         <p className="mt-2 text-xs text-gray-500">
-          The refundable portion ({formatFee(fee.refundable_resource_fee)}) may be
-          partially returned if unused resources are reclaimed after execution.
+          The refundable portion ({formatFee(fee.refundable_resource_fee)}) may
+          be partially returned if unused resources are reclaimed after
+          execution.
         </p>
       )}
     </section>
@@ -102,15 +103,16 @@ function ResourcePanel({ context }: { context: TransactionContext }) {
   const cpuPct =
     resources.cpu_instructions_limit > 0
       ? Math.min(
-          (resources.cpu_instructions_used / resources.cpu_instructions_limit) * 100,
-          100
+          (resources.cpu_instructions_used / resources.cpu_instructions_limit) *
+            100,
+          100,
         )
       : 0;
   const memPct =
     resources.memory_bytes_limit > 0
       ? Math.min(
           (resources.memory_bytes_used / resources.memory_bytes_limit) * 100,
-          100
+          100,
         )
       : 0;
 
@@ -136,7 +138,8 @@ function ResourcePanel({ context }: { context: TransactionContext }) {
         <div className="flex justify-between text-xs text-gray-400 mb-1">
           <span>{label}</span>
           <span>
-            {used.toLocaleString()} / {limit.toLocaleString()} ({pct.toFixed(0)}%)
+            {used.toLocaleString()} / {limit.toLocaleString()} ({pct.toFixed(0)}
+            %)
           </span>
         </div>
         <div

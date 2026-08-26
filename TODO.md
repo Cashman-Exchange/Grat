@@ -6,5 +6,3 @@
 - [x] Update access semantics on `get()` so reads affect LRU ordering
 - [x] Add/extend unit tests validating aggregate size stays within limit after evictions
 - [x] Run `cargo test` to verify correctness
-
-

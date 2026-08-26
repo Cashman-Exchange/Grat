@@ -51,20 +51,19 @@ impl ArgumentDecoder {
         func: &ContractFunction,
         contract_spec: Option<&ContractSpec>,
     ) -> Vec<DecodedArgument> {
-        if !func.param_defs.is_empty() {
-            self.decode(args, &func.param_defs, contract_spec)
-        } else {
+        if func.param_defs.is_empty() {
             args.iter()
                 .enumerate()
                 .map(|(i, val)| {
                     let name = func
                         .params
                         .get(i)
-                        .map(|(pname, _)| pname.clone())
-                        .unwrap_or_else(|| format!("arg{i}"));
+                        .map_or_else(|| format!("arg{i}"), |(pname, _)| pname.clone());
                     self.decode_single_argument(&name, val, None, contract_spec)
                 })
                 .collect()
+        } else {
+            self.decode(args, &func.param_defs, contract_spec)
         }
     }
 
@@ -254,7 +253,7 @@ mod tests {
             }),
         )];
 
-        let decoded = decoder.decode(&vec![map_val], &param_defs, Some(&contract_spec));
+        let decoded = decoder.decode(&[map_val], &param_defs, Some(&contract_spec));
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0].name, "target");
         assert_eq!(

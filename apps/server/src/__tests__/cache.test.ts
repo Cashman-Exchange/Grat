@@ -52,8 +52,14 @@ vi.mock("../ai/prompts", () => ({
   PROMPT_VERSION_HASH: "test12345678",
 }));
 
-const { setCache, getCache, invalidateByTxHash, invalidateEntry, clearByType, clearAll } =
-  await import("../cache");
+const {
+  setCache,
+  getCache,
+  invalidateByTxHash,
+  invalidateEntry,
+  clearByType,
+  clearAll,
+} = await import("../cache");
 
 describe("Cache — basic operations", () => {
   beforeEach(() => {

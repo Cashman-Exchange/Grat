@@ -16,12 +16,7 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": [
-              "introduction",
-              "installation",
-              "quickstart",
-              "roadmap"
-            ]
+            "pages": ["introduction", "installation", "quickstart", "roadmap"]
           },
           {
             "group": "Core Concepts",

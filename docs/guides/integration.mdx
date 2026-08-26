@@ -21,6 +21,7 @@ graph LR
 ## Integration Steps
 
 ### 1. Start the Grat Server
+
 Run the Grat server to expose the WebSocket endpoint:
 
 ```bash
@@ -28,19 +29,23 @@ grat serve --port 8080 --network mainnet
 ```
 
 ### 2. Connect via WebSocket
+
 Connect your client to the server (e.g., using `tokio-tungstenite` in Rust or standard WebSockets in JavaScript).
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8080');
+const ws = new WebSocket("ws://localhost:8080");
 
 ws.onopen = () => {
-  ws.send(JSON.stringify({
-    tx_hash: "abc123..."
-  }));
+  ws.send(
+    JSON.stringify({
+      tx_hash: "abc123...",
+    }),
+  );
 };
 ```
 
 ### 3. Handle Streamed Events
+
 Handle the incoming JSON messages to update your UI or state.
 
 <CodeGroup>

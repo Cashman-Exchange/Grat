@@ -77,7 +77,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::budget::lookup(*code) {
                     format!("[BUDGET] {}", detail.name)
                 } else {
-                    format!("[BUDGET] Code {}", code)
+                    format!("[BUDGET] Code {code}")
                 }
             }
 
@@ -85,7 +85,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::storage::lookup(*code) {
                     format!("[STORAGE] {}", detail.name)
                 } else {
-                    format!("[STORAGE] Code {}", code)
+                    format!("[STORAGE] Code {code}")
                 }
             }
 
@@ -93,7 +93,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::auth::lookup(*code) {
                     format!("[AUTH] {}", detail.name)
                 } else {
-                    format!("[AUTH] Code {}", code)
+                    format!("[AUTH] Code {code}")
                 }
             }
 
@@ -101,7 +101,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::context::lookup(*code) {
                     format!("[CONTEXT] {}", detail.name)
                 } else {
-                    format!("[CONTEXT] Code {}", code)
+                    format!("[CONTEXT] Code {code}")
                 }
             }
 
@@ -109,7 +109,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::value::lookup(*code) {
                     format!("[VALUE] {}", detail.name)
                 } else {
-                    format!("[VALUE] Code {}", code)
+                    format!("[VALUE] Code {code}")
                 }
             }
 
@@ -117,7 +117,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::object::lookup(*code) {
                     format!("[OBJECT] {}", detail.name)
                 } else {
-                    format!("[OBJECT] Code {}", code)
+                    format!("[OBJECT] Code {code}")
                 }
             }
 
@@ -125,7 +125,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::crypto::lookup(*code) {
                     format!("[CRYPTO] {}", detail.name)
                 } else {
-                    format!("[CRYPTO] Code {}", code)
+                    format!("[CRYPTO] Code {code}")
                 }
             }
 
@@ -133,7 +133,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::contract::lookup(*code) {
                     format!("[CONTRACT] {}", detail.name)
                 } else {
-                    format!("[CONTRACT] Code {}", code)
+                    format!("[CONTRACT] Code {code}")
                 }
             }
 
@@ -141,7 +141,7 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::wasm::lookup(*code) {
                     format!("[WASM] {}", detail.name)
                 } else {
-                    format!("[WASM] Code {}", code)
+                    format!("[WASM] Code {code}")
                 }
             }
 
@@ -149,20 +149,20 @@ impl HostError {
                 if let Some(detail) = crate::decode::mappings::events::lookup(*code) {
                     format!("[EVENTS] {}", detail.name)
                 } else {
-                    format!("[EVENTS] Code {}", code)
+                    format!("[EVENTS] Code {code}")
                 }
             }
 
             Self::ContractSpecific { contract_id, code } => {
                 let contract = contract_id.as_deref().unwrap_or("unknown");
-                format!("[CONTRACT] {} ({})", contract, code)
+                format!("[CONTRACT] {contract} ({code})")
             }
 
             Self::Unknown {
                 type_code,
                 sub_code,
             } => {
-                format!("[UNKNOWN] {}:{}", type_code, sub_code)
+                format!("[UNKNOWN] {type_code}:{sub_code}")
             }
         }
     }

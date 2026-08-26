@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const WebSocket = require('ws');
+const WebSocket = require("ws");
 
 /**
  * TraceStreamClient encapsulates WebSocket connection lifecycle and message handling.
@@ -25,7 +25,7 @@ class TraceStreamClient {
   connect() {
     return new Promise((resolve, reject) => {
       if (this.isConnecting || this.ws) {
-        reject(new Error('Already connecting or connected'));
+        reject(new Error("Already connecting or connected"));
         return;
       }
 
@@ -49,7 +49,7 @@ class TraceStreamClient {
   attachEventListeners(resolve, reject) {
     const handleOpen = () => {
       this.isConnecting = false;
-      console.log('✓ Connected to Grat WebSocket server');
+      console.log("✓ Connected to Grat WebSocket server");
       console.log(`Requesting trace for: ${this.txHash}\n`);
 
       this.ws.send(JSON.stringify({ tx_hash: this.txHash }));
@@ -61,27 +61,27 @@ class TraceStreamClient {
         const message = JSON.parse(data.toString());
         this.handleMessageType(message);
       } catch (err) {
-        console.error('Failed to parse message:', err);
+        console.error("Failed to parse message:", err);
       }
     };
 
     const handleError = (err) => {
       this.isConnecting = false;
-      console.error('WebSocket error:', err.message);
+      console.error("WebSocket error:", err.message);
       reject(err);
     };
 
     const handleClose = () => {
       if (!this.isClosed) {
-        console.log('\nConnection closed');
+        console.log("\nConnection closed");
       }
       this.cleanup();
     };
 
-    this.ws.on('open', handleOpen);
-    this.ws.on('message', handleMessage);
-    this.ws.on('error', handleError);
-    this.ws.on('close', handleClose);
+    this.ws.on("open", handleOpen);
+    this.ws.on("message", handleMessage);
+    this.ws.on("error", handleError);
+    this.ws.on("close", handleClose);
   }
 
   /**
@@ -89,37 +89,37 @@ class TraceStreamClient {
    */
   handleMessageType(message) {
     switch (message.type) {
-      case 'trace_started':
+      case "trace_started":
         this.handleTraceStarted(message);
         break;
 
-      case 'trace_node':
+      case "trace_node":
         this.handleTraceNode();
         break;
 
-      case 'resource_update':
+      case "resource_update":
         this.handleResourceUpdate(message);
         break;
 
-      case 'state_diff_entry':
+      case "state_diff_entry":
         this.handleStateDiffEntry(message);
         break;
 
-      case 'trace_completed':
+      case "trace_completed":
         this.handleTraceCompleted(message);
         break;
 
-      case 'trace_error':
+      case "trace_error":
         this.handleTraceError(message);
         break;
 
       default:
-        console.log('\n⚠ Unknown message type:', message.type);
+        console.log("\n⚠ Unknown message type:", message.type);
     }
   }
 
   handleTraceStarted(message) {
-    console.log('🚀 Trace started');
+    console.log("🚀 Trace started");
     console.log(`   Transaction: ${message.tx_hash}`);
     console.log(`   Ledger: ${message.ledger_sequence}\n`);
   }
@@ -130,8 +130,13 @@ class TraceStreamClient {
   }
 
   handleResourceUpdate(message) {
-    const cpuPercent = (message.cpu_used / message.cpu_limit * 100).toFixed(1);
-    const memPercent = (message.memory_used / message.memory_limit * 100).toFixed(1);
+    const cpuPercent = ((message.cpu_used / message.cpu_limit) * 100).toFixed(
+      1,
+    );
+    const memPercent = (
+      (message.memory_used / message.memory_limit) *
+      100
+    ).toFixed(1);
     console.log(`\n📊 Resources: CPU ${cpuPercent}%, Memory ${memPercent}%`);
   }
 
@@ -141,7 +146,7 @@ class TraceStreamClient {
 
   handleTraceCompleted(message) {
     const duration = Date.now() - this.startTime;
-    console.log('\n\n✅ Trace completed!');
+    console.log("\n\n✅ Trace completed!");
     console.log(`   Total nodes: ${message.total_nodes}`);
     console.log(`   Server duration: ${message.duration_ms}ms`);
     console.log(`   Client duration: ${duration}ms`);
@@ -149,7 +154,7 @@ class TraceStreamClient {
   }
 
   handleTraceError(message) {
-    console.error('\n\n❌ Trace error:', message.error);
+    console.error("\n\n❌ Trace error:", message.error);
     this.close();
   }
 
@@ -188,10 +193,10 @@ async function connectToTraceStream(wsUrl, txHash) {
 // Main execution
 async function main() {
   const TX_HASH = process.argv[2];
-  const WS_URL = process.env.WS_URL || 'ws://localhost:8080';
+  const WS_URL = process.env.WS_URL || "ws://localhost:8080";
 
   if (!TX_HASH) {
-    console.error('Usage: node websocket-client.js <tx-hash>');
+    console.error("Usage: node websocket-client.js <tx-hash>");
     process.exit(1);
   }
 
@@ -200,19 +205,19 @@ async function main() {
   try {
     const client = await connectToTraceStream(WS_URL, TX_HASH);
 
-    process.on('SIGINT', () => {
-      console.log('\n\nClosing connection...');
+    process.on("SIGINT", () => {
+      console.log("\n\nClosing connection...");
       client.close();
       process.exit(0);
     });
   } catch (err) {
-    console.error('Failed to connect:', err.message);
+    console.error("Failed to connect:", err.message);
     process.exit(1);
   }
 }
 
 main().catch((err) => {
-  console.error('Unexpected error:', err);
+  console.error("Unexpected error:", err);
   process.exit(1);
 });
 

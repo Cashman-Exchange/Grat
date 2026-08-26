@@ -197,7 +197,10 @@ impl CacheStore {
             let path = oldest_file.path();
             // Best-effort delete.
             std::fs::remove_file(&path).map_err(|e| {
-                GratError::CacheError(format!("Failed to evict cache file {:?}: {e}", path))
+                GratError::CacheError(format!(
+                    "Failed to evict cache file {}: {e}",
+                    path.display()
+                ))
             })?;
 
             // If deletion succeeded, loop will re-check size.

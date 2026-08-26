@@ -151,8 +151,14 @@ impl TransactionResultMeta {
                 if event.get("type").and_then(|t| t.as_str()) == Some("budget") {
                     if let Some(data) = event.get("data") {
                         let category = data.get("category").and_then(|c| c.as_str()).unwrap_or("");
-                        let used = data.get("used").and_then(|v| v.as_u64()).unwrap_or(0);
-                        let limit = data.get("limit").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let used = data
+                            .get("used")
+                            .and_then(serde_json::Value::as_u64)
+                            .unwrap_or(0);
+                        let limit = data
+                            .get("limit")
+                            .and_then(serde_json::Value::as_u64)
+                            .unwrap_or(0);
 
                         match category {
                             "cpu" => {
@@ -185,37 +191,37 @@ impl TransactionResultMeta {
         if let Some(alloc_obj) = tx_data.get("resourcesAllocated") {
             allocated.cpu_instructions = alloc_obj
                 .get("cpuInstructions")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(allocated.cpu_instructions);
             allocated.memory_bytes = alloc_obj
                 .get("memoryBytes")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(allocated.memory_bytes);
             allocated.read_bytes = alloc_obj
                 .get("readBytes")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(allocated.read_bytes);
             allocated.write_bytes = alloc_obj
                 .get("writeBytes")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(allocated.write_bytes);
         }
         if let Some(cons_obj) = tx_data.get("resourcesConsumed") {
             consumed.cpu_instructions = cons_obj
                 .get("cpuInstructions")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(consumed.cpu_instructions);
             consumed.memory_bytes = cons_obj
                 .get("memoryBytes")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(consumed.memory_bytes);
             consumed.read_bytes = cons_obj
                 .get("readBytes")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(consumed.read_bytes);
             consumed.write_bytes = cons_obj
                 .get("writeBytes")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(consumed.write_bytes);
         }
 
@@ -310,7 +316,7 @@ fn analyze_metric(
     consumed: u64,
     is_budget_error: bool,
 ) -> MetricDiagnostic {
-    let delta = (consumed as i128) - (allocated as i128);
+    let delta = i128::from(consumed) - i128::from(allocated);
     let percentage_utilization = if allocated > 0 {
         (consumed as f64 / allocated as f64) * 100.0
     } else if consumed > 0 {
@@ -343,7 +349,7 @@ fn format_number(mut val: u64) -> String {
         let rem = val % 1000;
         val /= 1000;
         if val > 0 {
-            parts.push(format!("{:03}", rem));
+            parts.push(format!("{rem:03}"));
         } else {
             parts.push(rem.to_string());
         }
@@ -354,9 +360,9 @@ fn format_number(mut val: u64) -> String {
 
 fn format_percentage(val: f64) -> String {
     if val.fract() == 0.0 {
-        format!("{:.0}", val)
+        format!("{val:.0}")
     } else {
-        let s = format!("{:.2}", val);
+        let s = format!("{val:.2}");
         s.trim_end_matches('0').trim_end_matches('.').to_string()
     }
 }

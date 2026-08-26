@@ -30,6 +30,7 @@ pub struct SCSpecResolver {
     /// In-memory cache for frequently accessed specs to avoid disk I/O
     memory_cache: Arc<Mutex<HashMap<ContractId, ContractSpec>>>,
     /// Tracks ongoing fetch operations to prevent duplicate network requests
+    #[allow(clippy::type_complexity)]
     pending_fetches: Arc<Mutex<HashMap<ContractId, Arc<Mutex<Option<ContractSpec>>>>>>,
 }
 
@@ -181,7 +182,7 @@ impl SCSpecResolver {
         // The contract ID is a strkey-encoded C... string
         // We need to convert it to the proper ledger key format for getLedgerEntries
 
-        let contract_key = format!("contract_code/{}", contract_id);
+        let contract_key = format!("contract_code/{contract_id}");
 
         let response = self.rpc_client.get_ledger_entries(&[contract_key]).await?;
 
@@ -213,11 +214,12 @@ impl SCSpecResolver {
 
         // Parse the XDR to extract the WASM bytecode
         // The ledger entry for contract code contains the WASM bytecode
-        self.extract_wasm_from_ledger_entry(&xdr_bytes)
+        Self::extract_wasm_from_ledger_entry(xdr_bytes.as_slice())
     }
 
     /// Extracts WASM bytecode from a ledger entry XDR.
-    fn extract_wasm_from_ledger_entry(&self, xdr_bytes: &[u8]) -> GratResult<Vec<u8>> {
+    #[allow(clippy::unused_self)]
+    fn extract_wasm_from_ledger_entry(xdr_bytes: &[u8]) -> GratResult<Vec<u8>> {
         use stellar_xdr::curr::{LedgerEntry, LedgerEntryData, Limited, Limits, ReadXdr};
 
         let mut cursor = std::io::Cursor::new(xdr_bytes);

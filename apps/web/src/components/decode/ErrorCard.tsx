@@ -36,7 +36,9 @@ export default function ErrorCard({ report }: ErrorCardProps) {
             </span>
           </h3>
         </div>
-        <span className={`text-xs px-2.5 py-1 rounded border font-medium ${getSeverityStyles(report.severity)}`}>
+        <span
+          className={`text-xs px-2.5 py-1 rounded border font-medium ${getSeverityStyles(report.severity)}`}
+        >
           {report.severity.toUpperCase()}
         </span>
       </div>
@@ -65,7 +67,10 @@ export default function ErrorCard({ report }: ErrorCardProps) {
           {report.root_causes && report.root_causes.length > 0 ? (
             <ul className="space-y-3">
               {report.root_causes.map((cause, i) => (
-                <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
+                <li
+                  key={i}
+                  className="text-sm text-slate-300 flex items-start gap-2"
+                >
                   <span className="text-red-400 mt-1">•</span>
                   <div>
                     <p>{cause.description}</p>
@@ -77,7 +82,9 @@ export default function ErrorCard({ report }: ErrorCardProps) {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500 italic">No common causes documented.</p>
+            <p className="text-sm text-slate-500 italic">
+              No common causes documented.
+            </p>
           )}
         </div>
 
@@ -88,7 +95,10 @@ export default function ErrorCard({ report }: ErrorCardProps) {
           {report.suggested_fixes && report.suggested_fixes.length > 0 ? (
             <ul className="space-y-3">
               {report.suggested_fixes.map((fix, i) => (
-                <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
+                <li
+                  key={i}
+                  className="text-sm text-slate-300 flex items-start gap-2"
+                >
                   <span className="text-emerald-400 mt-1">✓</span>
                   <div>
                     <p>{fix.description}</p>
@@ -107,7 +117,9 @@ export default function ErrorCard({ report }: ErrorCardProps) {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500 italic">No suggested fixes documented.</p>
+            <p className="text-sm text-slate-500 italic">
+              No suggested fixes documented.
+            </p>
           )}
         </div>
       </div>

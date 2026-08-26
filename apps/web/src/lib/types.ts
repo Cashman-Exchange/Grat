@@ -1,4 +1,3 @@
-
 export interface DiagnosticReport {
   error_category: string;
   error_code: number;
@@ -36,8 +35,8 @@ export interface FeeBreakdown {
   total_charged_fee: number;
   inclusion_fee: number;
   resource_fee: number;
-    refundable_resource_fee: number;
-    refundable_fee: number;
+  refundable_resource_fee: number;
+  refundable_fee: number;
   non_refundable_fee: number;
   bid_fee?: number;
 }

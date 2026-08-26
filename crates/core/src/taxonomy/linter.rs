@@ -275,7 +275,7 @@ mod tests {
             id: id.to_string(),
             category,
             code,
-            name: format!("TestName{}", code),
+            name: format!("TestName{code}"),
             severity: "Error".to_string(),
             since_protocol: Some(20),
             deprecated_protocol: None,

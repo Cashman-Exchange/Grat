@@ -56,6 +56,24 @@ pub enum GratError {
     #[error("Cache error: {0}")]
     CacheError(String),
 
+    #[error("Cache miss for key '{0}'")]
+    CacheMiss(String),
+
+    #[error(
+        "Cache entry for key '{key}' ({entry_size} bytes) exceeds capacity limit of {limit} bytes"
+    )]
+    CacheCapacityExceeded {
+        key: String,
+        entry_size: u64,
+        limit: u64,
+    },
+
+    #[error("Failed to serialize cache value for key '{key}': {reason}")]
+    CacheSerializationError { key: String, reason: String },
+
+    #[error("Failed to deserialize cache value for key '{key}': {reason}")]
+    CacheDeserializationError { key: String, reason: String },
+
     #[error("Taxonomy error: {0}")]
     TaxonomyError(String),
 

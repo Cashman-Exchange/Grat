@@ -4,6 +4,7 @@ use crate::output::renderers::{
     render_cause_list, render_error_card, render_fee_breakdown, render_fix_list,
     render_section_header, BudgetBar,
 };
+use crate::ui::markdown::MarkdownRenderer;
 
 pub fn print_report(report: &DiagnosticReport) -> anyhow::Result<()> {
     println!("{}", render_error_card(report));
@@ -15,6 +16,13 @@ pub fn print_report(report: &DiagnosticReport) -> anyhow::Result<()> {
         report.error_name, report.error_category, report.error_code
     );
     println!("Summary: {}", report.summary);
+
+    if !report.detailed_explanation.trim().is_empty() {
+        println!();
+        println!("{}", render_section_header("Detailed Explanation"));
+        let rendered = MarkdownRenderer::new().render(&report.detailed_explanation);
+        print!("{rendered}");
+    }
 
     if let Some(context) = &report.transaction_context {
         println!();

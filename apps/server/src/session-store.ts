@@ -101,7 +101,7 @@ export class SessionStore {
       redisKey(sessionId),
       JSON.stringify(meta),
       "EX",
-      SESSION_TTL_SECONDS
+      SESSION_TTL_SECONDS,
     );
 
     return meta;
@@ -123,7 +123,7 @@ export class SessionStore {
    */
   async updateSnapshot(
     sessionId: string,
-    snapshot: TraceSnapshot
+    snapshot: TraceSnapshot,
   ): Promise<boolean> {
     const meta = await this.get(sessionId);
     if (!meta) return false;
@@ -135,7 +135,7 @@ export class SessionStore {
       redisKey(sessionId),
       JSON.stringify(meta),
       "EX",
-      SESSION_TTL_SECONDS
+      SESSION_TTL_SECONDS,
     );
     return true;
   }
@@ -146,7 +146,7 @@ export class SessionStore {
   async touch(sessionId: string): Promise<boolean> {
     const result = await this.redis.expire(
       redisKey(sessionId),
-      SESSION_TTL_SECONDS
+      SESSION_TTL_SECONDS,
     );
     return result === 1;
   }

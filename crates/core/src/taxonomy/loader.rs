@@ -18,6 +18,37 @@ pub struct TaxonomyDatabase {
 }
 
 impl TaxonomyDatabase {
+    pub fn load_latest() -> GratResult<Self> {
+        if let Some(db_path) = crate::taxonomy::updater::db_file_path() {
+            if db_path.exists() {
+                if db_path.is_dir() {
+                    if let Ok(db) = Self::load_from_dir(&db_path) {
+                        return Ok(db);
+                    }
+                } else if let Ok(content) = std::fs::read_to_string(&db_path) {
+                    if let Ok(schema) = TaxonomyParser::parse(&content) {
+                        let mut db = Self {
+                            entries: HashMap::new(),
+                            all_entries: Vec::new(),
+                        };
+                        for entry in schema.errors {
+                            db.entries
+                                .insert((entry.category.clone(), entry.code), entry.clone());
+                            db.all_entries.push(entry);
+                        }
+                        tracing::info!(
+                            "Loaded {} taxonomy entries from downloaded file",
+                            db.entries.len()
+                        );
+                        return Ok(db);
+                    }
+                }
+            }
+        }
+
+        Self::load_embedded()
+    }
+
     pub fn load_embedded() -> GratResult<Self> {
         let mut db = Self {
             entries: HashMap::new(),

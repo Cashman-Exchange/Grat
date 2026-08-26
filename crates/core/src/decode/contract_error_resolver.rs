@@ -66,8 +66,7 @@ impl ContractErrorResolver {
             Ok((entry.name.clone(), entry.doc.clone()))
         } else {
             Err(GratError::SpecError(format!(
-                "Error code {} not found in contract {} spec",
-                error_code, contract_id
+                "Error code {error_code} not found in contract {contract_id} spec"
             )))
         }
     }
@@ -116,7 +115,7 @@ impl ContractErrorResolver {
             LedgerEntryData::ContractData(contract_data) => match contract_data.val {
                 ScVal::ContractInstance(instance) => match instance.executable {
                     ContractExecutable::Wasm(wasm_hash) => wasm_hash,
-                    _ => {
+                    ContractExecutable::StellarAsset => {
                         return Err(GratError::SpecError(
                             "Contract is not a WASM executable".to_string(),
                         ))

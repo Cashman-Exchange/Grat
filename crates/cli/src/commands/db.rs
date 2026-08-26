@@ -23,7 +23,7 @@ pub async fn run(args: DbArgs, output_format: &str) -> anyhow::Result<()> {
     match args.command {
         DbCommands::Update => update_taxonomy_database(output_format).await?,
         DbCommands::Stats => {
-            let db = grat_core::taxonomy::loader::TaxonomyDatabase::load_embedded()?;
+            let db = grat_core::taxonomy::loader::TaxonomyDatabase::load_latest()?;
             if matches!(
                 crate::output::OutputFormat::parse(output_format),
                 crate::output::OutputFormat::Json
@@ -63,7 +63,7 @@ async fn update_taxonomy_database(output_format: &str) -> Result<()> {
         crate::output::OutputFormat::Json
     ) {
         tokio::time::sleep(Duration::from_secs(1)).await;
-        let db = grat_core::taxonomy::loader::TaxonomyDatabase::load_embedded()
+        let db = grat_core::taxonomy::loader::TaxonomyDatabase::load_latest()
             .context("Failed to load updated taxonomy database")?;
         let payload = serde_json::json!({
             "status": "ok",
@@ -100,7 +100,7 @@ async fn update_taxonomy_database(output_format: &str) -> Result<()> {
 
     spinner.finish_with_message("✅ Taxonomy database updated successfully!");
 
-    let db = grat_core::taxonomy::loader::TaxonomyDatabase::load_embedded()
+    let db = grat_core::taxonomy::loader::TaxonomyDatabase::load_latest()
         .context("Failed to load updated taxonomy database")?;
     println!("📊 Database now contains {} error definitions", db.len());
 
