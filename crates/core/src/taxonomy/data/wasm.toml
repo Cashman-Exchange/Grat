@@ -19,6 +19,8 @@ Before executing a contract, the Soroban host validates the WASM bytecode. If th
 fails validation (e.g., uses disallowed WASM instructions, imports unsupported host functions, \
 or has malformed sections), the host rejects it with this error.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 
 [[errors.common_causes]]
 description = "Contract compiled with an incompatible Soroban SDK version"
@@ -33,8 +35,6 @@ description = "Recompile the contract with the latest compatible Soroban SDK ver
 difficulty = "easy"
 requires_upgrade = true
 
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"
 
 [[errors]]
 id = "host.wasm.unreachable"
@@ -50,6 +50,8 @@ almost always the result of a Rust `panic!`, a failed `assert!`/`unwrap()`/`expe
 explicitly unreachable branch the compiler emitted. Execution halts immediately and the whole \
 invocation is rolled back.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 [[errors.common_causes]]
 description = "A `panic!`, `unwrap()`, or `expect()` on a `None`/`Err` value inside the contract"
 likelihood = "high"
@@ -64,8 +66,6 @@ requires_upgrade = false
 description = "Inspect the diagnostic events for the panic message to locate the failing assertion"
 difficulty = "easy"
 requires_upgrade = false
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"
 
 [[errors]]
 id = "host.wasm.memory_access_out_of_bounds"
@@ -80,6 +80,8 @@ The contract attempted to load or store at a linear-memory address outside the b
 allocated memory. The WebAssembly VM detects this and traps to prevent invalid memory access. \
 This usually indicates a bug in low-level pointer or slice handling rather than ordinary contract logic.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 [[errors.common_causes]]
 description = "Manual pointer arithmetic or `unsafe` slice handling that runs past the end of a buffer"
 likelihood = "high"
@@ -94,8 +96,6 @@ requires_upgrade = false
 description = "Rebuild the contract with a known-good Soroban SDK and toolchain version"
 difficulty = "easy"
 requires_upgrade = true
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"
 
 [[errors]]
 id = "host.wasm.table_access_out_of_bounds"
@@ -110,6 +110,8 @@ WebAssembly resolves indirect (dynamic) calls through a function table. The cont
 table index that does not exist, so the VM trapped. This typically points to a corrupted module or \
 a toolchain bug rather than ordinary contract logic.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 [[errors.common_causes]]
 description = "A miscompiled or corrupted WASM module with an invalid function-table layout"
 likelihood = "medium"
@@ -120,8 +122,6 @@ likelihood = "low"
 description = "Recompile the contract from clean sources with a supported Soroban SDK version"
 difficulty = "easy"
 requires_upgrade = true
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"
 
 [[errors]]
 id = "host.wasm.indirect_call_type_mismatch"
@@ -136,6 +136,8 @@ An indirect call resolved to a function whose type signature differs from the on
 call site. WebAssembly enforces signature equality for indirect calls and traps on mismatch. This \
 almost always indicates a corrupted module or a toolchain defect.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 [[errors.common_causes]]
 description = "A corrupted or miscompiled WASM module with mismatched function-type metadata"
 likelihood = "medium"
@@ -146,8 +148,6 @@ likelihood = "low"
 description = "Rebuild the contract from clean sources with a single, supported toolchain"
 difficulty = "easy"
 requires_upgrade = true
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"
 
 [[errors]]
 id = "host.wasm.integer_division_by_zero"
@@ -162,6 +162,8 @@ The contract executed an integer division (`/`) or remainder (`%`) where the div
 zero. WebAssembly traps on integer division by zero rather than returning a value, halting the \
 invocation.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 [[errors.common_causes]]
 description = "Dividing by a quantity, balance, or supply value that can be zero"
 likelihood = "high"
@@ -176,8 +178,6 @@ requires_upgrade = false
 description = "Use checked arithmetic (`checked_div`) and handle the `None` case explicitly"
 difficulty = "easy"
 requires_upgrade = false
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"
 
 [[errors]]
 id = "host.wasm.integer_overflow"
@@ -192,6 +192,8 @@ An arithmetic operation produced a result outside the range of its integer type 
 debug builds Rust inserts overflow checks that surface here; common sources are token-amount math \
 and accumulators that exceed their type's maximum.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 [[errors.common_causes]]
 description = "Adding or multiplying token amounts that exceed the integer type's maximum"
 likelihood = "high"
@@ -206,8 +208,6 @@ requires_upgrade = false
 description = "Use a wider integer type (e.g. `i128`/`u128`) for accumulators and amount math"
 difficulty = "medium"
 requires_upgrade = false
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"
 
 [[errors]]
 id = "host.wasm.invalid_conversion_to_int"
@@ -223,6 +223,8 @@ outside the representable range of the target integer type. WebAssembly traps on
 conversions. Floating-point math is uncommon in Soroban contracts, so this usually stems from \
 imported library code.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 [[errors.common_causes]]
 description = "Converting a NaN or out-of-range floating-point value to an integer"
 likelihood = "medium"
@@ -233,8 +235,6 @@ likelihood = "low"
 description = "Avoid floating-point arithmetic in contracts; use integer or fixed-point math instead"
 difficulty = "medium"
 requires_upgrade = false
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"
 
 [[errors]]
 id = "host.wasm.stack_overflow"
@@ -249,6 +249,8 @@ The contract's call depth grew beyond the WebAssembly VM's stack limit and trapp
 by unbounded or very deep recursion, or by large stack-allocated values pushing nested calls past \
 the limit.
 """
+related_errors = []
+source_file = "soroban-env-host/src/vm.rs"
 [[errors.common_causes]]
 description = "Unbounded or missing-base-case recursion in contract logic"
 likelihood = "high"
@@ -259,5 +261,3 @@ likelihood = "medium"
 description = "Add a base case or depth limit to recursive functions, or rewrite them iteratively"
 difficulty = "medium"
 requires_upgrade = false
-related_errors = []
-source_file = "soroban-env-host/src/vm.rs"

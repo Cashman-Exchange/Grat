@@ -505,8 +505,6 @@ mod tests {
                 learn_more: String::new(),
             }),
             transaction_context: None,
-            operation_count: Some(0),
-            operation_index: Some(0),
             related_errors: Vec::new(),
             cross_contract_attribution: None,
             auth_signatures: Vec::new(),
@@ -514,6 +512,8 @@ mod tests {
             failing_contract_id: None,
             call_chain: None,
             resource_diagnostics: None,
+            operation_index: None,
+            operation_count: None,
             learn_more: "https://developers.stellar.org/docs/learn/smart-contracts/errors"
                 .to_string(),
         }
@@ -577,8 +577,6 @@ mod tests {
         let context = TransactionContext {
             tx_hash: "abc123".to_string(),
             ledger_sequence: 12345,
-            operation_count: Some(0),
-            operation_index: Some(0),
             function_name: Some("transfer".to_string()),
             arguments: vec!["GABC".to_string(), "100".to_string()],
             fee: FeeBreakdown {
@@ -600,6 +598,8 @@ mod tests {
                 write_bytes: 500,
             },
             return_value: None,
+            operation_index: None,
+            operation_count: None,
         };
 
         let output = render_context_table(&context);

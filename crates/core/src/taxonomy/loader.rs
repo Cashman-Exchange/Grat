@@ -215,6 +215,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "decode")]
     fn taxonomy_covers_tier1_static_mapping_codes() {
         let db = TaxonomyDatabase::load_embedded().expect("Taxonomy should load");
 
