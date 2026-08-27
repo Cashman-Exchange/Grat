@@ -609,6 +609,40 @@ mod tests {
     }
 
     #[test]
+    fn render_context_table_with_empty_arguments() {
+        let context = TransactionContext {
+            tx_hash: "abc123".to_string(),
+            ledger_sequence: 12345,
+            operation_count: Some(0),
+            operation_index: Some(0),
+            function_name: Some("transfer".to_string()),
+            arguments: vec![],
+            fee: FeeBreakdown {
+                total_charged_fee: 150,
+                inclusion_fee: 100,
+                resource_fee: 50,
+                refundable_resource_fee: 25,
+                refundable_fee: 25,
+                non_refundable_fee: 25,
+                bid_fee: Some(150),
+            },
+            resources: ResourceSummary {
+                cpu_instructions_used: 1000,
+                cpu_instructions_limit: 10000,
+                memory_bytes_used: 5000,
+                memory_bytes_limit: 50000,
+                read_bytes: 1000,
+                read_bytes_limit: 10000,
+                write_bytes: 500,
+            },
+            return_value: None,
+        };
+
+        let output = render_context_table(&context);
+        assert!(output.is_empty());
+    }
+
+    #[test]
     fn render_fee_breakdown_works() {
         let fee = FeeBreakdown {
             total_charged_fee: 150,
