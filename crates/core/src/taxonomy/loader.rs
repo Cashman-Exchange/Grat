@@ -130,6 +130,19 @@ impl TaxonomyDatabase {
             .collect()
     }
 
+    pub fn search(&self, query: &str) -> Vec<&TaxonomyEntry> {
+        let query = query.to_lowercase();
+        self.all_entries
+            .iter()
+            .filter(|entry| {
+                entry.name.to_lowercase().contains(&query)
+                    || entry.category.to_string().to_lowercase().contains(&query)
+                    || entry.summary.to_lowercase().contains(&query)
+                    || entry.detailed_explanation.to_lowercase().contains(&query)
+            })
+            .collect()
+    }
+
     pub fn all_entries(&self) -> &[TaxonomyEntry] {
         &self.all_entries
     }
