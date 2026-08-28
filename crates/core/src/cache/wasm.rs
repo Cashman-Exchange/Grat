@@ -1,7 +1,6 @@
 use crate::cache::provider::CacheProvider;
 use crate::error::GratResult;
 use sha2::{Digest, Sha256};
-use std::future::Future;
 
 /// Specialized cache for compiled WebAssembly modules.
 /// Uses a cryptographic hash (SHA-256) of the original Wasm bytecode as the key
@@ -47,7 +46,7 @@ impl<P: CacheProvider> WasmCache<P> {
 mod tests {
     use super::*;
     use crate::cache::provider::CacheProvider;
-    use crate::error::{GratError, GratResult};
+    use crate::error::GratResult;
     use serde::{de::DeserializeOwned, Serialize};
     use std::collections::HashMap;
     use std::sync::Mutex;

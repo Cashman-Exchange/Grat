@@ -86,7 +86,6 @@ enum Commands {
 
     Serve(commands::serve::ServeArgs),
 
-    #[command(alias = "search-error")]
     SearchError(commands::search_error::SearchErrorArgs),
 }
 
