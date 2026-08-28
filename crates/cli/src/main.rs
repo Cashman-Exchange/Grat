@@ -85,6 +85,9 @@ enum Commands {
     },
 
     Serve(commands::serve::ServeArgs),
+
+    #[command(alias = "search-error")]
+    SearchError(commands::search_error::SearchErrorArgs),
 }
 
 #[tokio::main]
@@ -157,6 +160,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Auth(args) => commands::auth::run(args, &cli.output).await?,
         Commands::Diagnostic(args) => commands::diagnostic::run(args).await?,
         Commands::Serve(args) => commands::serve::run(args, &network).await?,
+        Commands::SearchError(args) => commands::search_error::run(args).await?,
         Commands::Completions { shell } => {
             let mut cmd = Cli::command();
             let name = cmd.get_name().to_string();
