@@ -4,7 +4,9 @@ use tabled::Table;
 use tabled::Tabled;
 
 #[derive(Parser, Debug)]
-#[command(about = "Search the taxonomy database for specific error names, categories, or descriptions")]
+#[command(
+    about = "Search the taxonomy database for specific error names, categories, or descriptions"
+)]
 pub struct SearchErrorArgs {
     #[arg(help = "The search query (case-insensitive substring match)")]
     pub query: String,
