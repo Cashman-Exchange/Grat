@@ -1,5 +1,7 @@
 use crate::error::{ArchiveErrorKind, GratResult};
 use crate::network::NetworkConfig;
+use flate2::read::GzDecoder;
+use std::io::Read;
 use stellar_xdr::curr::{LedgerHeader, LedgerHeaderHistoryEntry, Limits, ReadXdr};
 
 pub struct ArchiveClient {
@@ -21,6 +23,47 @@ pub struct ArchiveCheckpoint {
     pub transaction_results: Vec<u8>,
 }
 
+async fn fetch_and_decompress(
+    client: &reqwest::Client,
+    url: &str,
+    file_name: &str,
+) -> Result<Vec<u8>, ArchiveErrorKind> {
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| ArchiveErrorKind::FetchFailed {
+            file: file_name.to_string(),
+            reason: e.to_string(),
+        })?;
+
+    if !response.status().is_success() {
+        return Err(ArchiveErrorKind::FetchFailed {
+            file: file_name.to_string(),
+            reason: format!("HTTP status {}", response.status()),
+        });
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| ArchiveErrorKind::FetchFailed {
+            file: file_name.to_string(),
+            reason: format!("failed to read response bytes: {e}"),
+        })?;
+
+    let mut decoder = GzDecoder::new(&bytes[..]);
+    let mut decompressed = Vec::new();
+    decoder
+        .read_to_end(&mut decompressed)
+        .map_err(|e| ArchiveErrorKind::DecompressionFailed {
+            file: file_name.to_string(),
+            reason: e.to_string(),
+        })?;
+
+    Ok(decompressed)
+}
+
 impl ArchiveClient {
     pub fn new(config: &NetworkConfig) -> Self {
         Self {
@@ -30,21 +73,64 @@ impl ArchiveClient {
     }
 
     pub async fn fetch_checkpoint(&self, ledger_sequence: u32) -> GratResult<ArchiveCheckpoint> {
-        let checkpoint_seq = (ledger_sequence / 64) * 64;
-        let _path = format_checkpoint_path(checkpoint_seq);
-        let archive_count = self.archive_urls.len();
-        let _ = &self.client;
+        let checkpoint_seq = get_checkpoint_seq(ledger_sequence);
+        let hex = format!("{checkpoint_seq:08x}");
+        let sub_dir = format!("{}/{}/{}", &hex[0..2], &hex[2..4], &hex[4..6]);
 
-        tracing::info!(
-            archive_count,
-            "Fetching archive checkpoint for ledger {checkpoint_seq}"
-        );
+        let ledger_rel_path = format!("ledger/{}/ledger-{}.xdr.gz", sub_dir, hex);
+        let tx_rel_path = format!("transactions/{}/transactions-{}.xdr.gz", sub_dir, hex);
+        let results_rel_path = format!("results/{}/results-{}.xdr.gz", sub_dir, hex);
 
-        Err(ArchiveErrorKind::FetchFailed {
-            file: format!("checkpoint-{checkpoint_seq}"),
-            reason: "Archive fetch not yet implemented".to_string(),
+        let mut last_error = None;
+
+        for base_url in &self.archive_urls {
+            let base = base_url.trim_end_matches('/');
+
+            let ledger_url = format!("{base}/{ledger_rel_path}");
+            let tx_url = format!("{base}/{tx_rel_path}");
+            let results_url = format!("{base}/{results_rel_path}");
+
+            let ledger_header =
+                match fetch_and_decompress(&self.client, &ledger_url, &ledger_rel_path).await {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        last_error = Some(e);
+                        continue;
+                    }
+                };
+
+            let transaction_set =
+                match fetch_and_decompress(&self.client, &tx_url, &tx_rel_path).await {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        last_error = Some(e);
+                        continue;
+                    }
+                };
+
+            let transaction_results =
+                match fetch_and_decompress(&self.client, &results_url, &results_rel_path).await {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        last_error = Some(e);
+                        continue;
+                    }
+                };
+
+            return Ok(ArchiveCheckpoint {
+                ledger_sequence: checkpoint_seq,
+                ledger_header,
+                transaction_set,
+                transaction_results,
+            });
         }
-        .into())
+
+        let err = last_error.unwrap_or_else(|| ArchiveErrorKind::FetchFailed {
+            file: format!("checkpoint-{checkpoint_seq}"),
+            reason: "no archive URLs configured".to_string(),
+        });
+
+        Err(err.into())
     }
 
     pub async fn fetch_ledger_entry(
@@ -61,7 +147,8 @@ impl ArchiveClient {
 
     pub async fn get_ledger_header(&self, ledger_sequence: u32) -> GratResult<LedgerHeader> {
         let checkpoint = self.fetch_checkpoint(ledger_sequence).await?;
-        let checkpoint_file = format!("checkpoint-{}", (ledger_sequence / 64) * 64);
+        let checkpoint_seq = get_checkpoint_seq(ledger_sequence);
+        let checkpoint_file = format!("checkpoint-{}", checkpoint_seq);
         let entries = parse_ledger_header_stream(&checkpoint.ledger_header, &checkpoint_file)?;
 
         for entry in entries {
@@ -157,6 +244,11 @@ pub fn parse_ledger_header_stream(
     Ok(entries)
 }
 
+fn get_checkpoint_seq(ledger_sequence: u32) -> u32 {
+    (ledger_sequence / 64) * 64 + 63
+}
+
+#[cfg(test)]
 fn format_checkpoint_path(checkpoint_seq: u32) -> String {
     let hex = format!("{checkpoint_seq:08x}");
     format!(
@@ -175,9 +267,32 @@ mod tests {
     use stellar_xdr::curr::{Hash, LedgerHeaderExt, LedgerHeaderHistoryEntryExt, WriteXdr};
 
     fn make_test_entry(ledger_seq: u32) -> LedgerHeaderHistoryEntry {
-        let mut entry = LedgerHeaderHistoryEntry::default();
-        entry.header.ledger_seq = ledger_seq;
-        entry
+        LedgerHeaderHistoryEntry {
+            hash: Hash([0; 32]),
+            header: LedgerHeader {
+                ledger_version: 0,
+                previous_ledger_hash: Hash([0; 32]),
+                scp_value: stellar_xdr::curr::StellarValue {
+                    tx_set_hash: Hash([0; 32]),
+                    close_time: stellar_xdr::curr::TimePoint(0),
+                    upgrades: vec![].try_into().unwrap(),
+                    ext: stellar_xdr::curr::StellarValueExt::Basic,
+                },
+                tx_set_result_hash: Hash([0; 32]),
+                bucket_list_hash: Hash([0; 32]),
+                ledger_seq,
+                total_coins: 0,
+                fee_pool: 0,
+                inflation_seq: 0,
+                id_pool: 0,
+                base_fee: 100,
+                base_reserve: 100,
+                max_tx_set_size: 100,
+                skip_list: [Hash([0; 32]), Hash([0; 32]), Hash([0; 32]), Hash([0; 32])],
+                ext: LedgerHeaderExt::V0,
+            },
+            ext: LedgerHeaderHistoryEntryExt::V0,
+        }
     }
 
     fn frame_record(payload: &[u8], is_last: bool) -> Vec<u8> {
@@ -192,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_checkpoint_path_format() {
-        let path = format_checkpoint_path(64);
+        let path = format_checkpoint_path(get_checkpoint_seq(64));
         assert!(path.contains("ledger-"));
         assert!(path.ends_with(".xdr.gz"));
     }
@@ -309,5 +424,75 @@ mod tests {
         } else {
             panic!("expected MalformedXdr error, got {:?}", err);
         }
+    }
+
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    fn gzip_compress(data: &[u8]) -> Vec<u8> {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(data).unwrap();
+        encoder.finish().unwrap()
+    }
+
+    async fn start_mock_archive_server(
+        ledger_data: Vec<u8>,
+        tx_data: Vec<u8>,
+        res_data: Vec<u8>,
+    ) -> (String, tokio::task::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let url = format!("http://127.0.0.1:{}", port);
+
+        let handle = tokio::spawn(async move {
+            for _ in 0..3 {
+                if let Ok((mut socket, _)) = listener.accept().await {
+                    let mut buf = [0; 1024];
+                    let n = socket.read(&mut buf).await.unwrap();
+                    let request = String::from_utf8_lossy(&buf[..n]);
+
+                    let (status, body) = if request.contains("ledger-") {
+                        ("200 OK", &ledger_data)
+                    } else if request.contains("transactions-") {
+                        ("200 OK", &tx_data)
+                    } else if request.contains("results-") {
+                        ("200 OK", &res_data)
+                    } else {
+                        ("404 Not Found", &Vec::new())
+                    };
+
+                    let response = format!(
+                        "HTTP/1.1 {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        status,
+                        body.len()
+                    );
+                    socket.write_all(response.as_bytes()).await.unwrap();
+                    socket.write_all(body).await.unwrap();
+                    socket.flush().await.unwrap();
+                }
+            }
+        });
+
+        (url, handle)
+    }
+
+    #[tokio::test]
+    async fn test_get_ledger_header_integration() {
+        let entry = make_test_entry(64);
+        let xdr_bytes = entry.to_xdr(Limits::none()).unwrap();
+        let framed = frame_record(&xdr_bytes, true);
+
+        let ledger_gz = gzip_compress(&framed);
+        let dummy_gz = gzip_compress(&[0; 4]);
+
+        let (url, _handle) = start_mock_archive_server(ledger_gz, dummy_gz.clone(), dummy_gz).await;
+        let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url]);
+        let client = ArchiveClient::new(&config);
+
+        let header = client.get_ledger_header(64).await.unwrap();
+        assert_eq!(header.ledger_seq, 64);
     }
 }
