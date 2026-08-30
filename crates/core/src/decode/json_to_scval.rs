@@ -16,7 +16,10 @@ pub fn json_to_scval(value: &Value) -> Result<ScVal> {
 
 fn convert(value: &Value, depth: usize) -> Result<ScVal> {
     if depth > MAX_SCVAL_DEPTH {
-        return Err(anyhow!("max recursion depth ({}) exceeded", MAX_SCVAL_DEPTH));
+        return Err(anyhow!(
+            "max recursion depth ({}) exceeded",
+            MAX_SCVAL_DEPTH
+        ));
     }
 
     match value {
@@ -40,17 +43,21 @@ fn convert(value: &Value, depth: usize) -> Result<ScVal> {
                     Ok(ScVal::U64(u))
                 }
             } else {
-                Err(anyhow!("unsupported float or out of bounds number: {}", num))
+                Err(anyhow!(
+                    "unsupported float or out of bounds number: {}",
+                    num
+                ))
             }
         }
         Value::String(s) => convert_string(s),
         Value::Array(arr) => {
             // Check if this is the lossless map fallback: [{"key": ..., "value": ...}, ...]
-            let is_lossless_map = !arr.is_empty() && arr.iter().all(|v| {
-                v.as_object().map_or(false, |obj| {
-                    obj.len() == 2 && obj.contains_key("key") && obj.contains_key("value")
-                })
-            });
+            let is_lossless_map = !arr.is_empty()
+                && arr.iter().all(|v| {
+                    v.as_object().map_or(false, |obj| {
+                        obj.len() == 2 && obj.contains_key("key") && obj.contains_key("value")
+                    })
+                });
 
             if is_lossless_map {
                 let mut entries = Vec::with_capacity(arr.len());
@@ -185,7 +192,9 @@ fn parse_error(obj: &serde_json::Map<String, Value>) -> Result<ScError> {
 
     match err_type {
         "Contract" => {
-            let code = code_val.as_u64().ok_or_else(|| anyhow!("Contract code must be u32"))? as u32;
+            let code = code_val
+                .as_u64()
+                .ok_or_else(|| anyhow!("Contract code must be u32"))? as u32;
             Ok(ScError::Contract(code))
         }
         "WasmVm" => Ok(ScError::WasmVm(parse_code(code_val)?)),
@@ -201,15 +210,26 @@ fn parse_error(obj: &serde_json::Map<String, Value>) -> Result<ScError> {
     }
 }
 
-fn parse_contract_instance(obj: &serde_json::Map<String, Value>, depth: usize) -> Result<ScContractInstance> {
-    let exec_obj = obj.get("executable").and_then(|v| v.as_object()).ok_or_else(|| anyhow!("executable must be object"))?;
-    
+fn parse_contract_instance(
+    obj: &serde_json::Map<String, Value>,
+    depth: usize,
+) -> Result<ScContractInstance> {
+    let exec_obj = obj
+        .get("executable")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| anyhow!("executable must be object"))?;
+
     let exec_type = exec_obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
     let executable = if exec_type == "Wasm" {
-        let hash_str = exec_obj.get("wasmHash").and_then(|v| v.as_str()).unwrap_or("");
+        let hash_str = exec_obj
+            .get("wasmHash")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let hex = hash_str.strip_prefix("0x").unwrap_or(hash_str);
         let bytes = hex::decode(hex)?;
-        ContractExecutable::Wasm(Hash(bytes.try_into().map_err(|_| anyhow!("invalid hash size"))?))
+        ContractExecutable::Wasm(Hash(
+            bytes.try_into().map_err(|_| anyhow!("invalid hash size"))?,
+        ))
     } else if exec_type == "StellarAsset" {
         ContractExecutable::StellarAsset
     } else {
@@ -226,7 +246,10 @@ fn parse_contract_instance(obj: &serde_json::Map<String, Value>, depth: usize) -
         }
     };
 
-    Ok(ScContractInstance { executable, storage })
+    Ok(ScContractInstance {
+        executable,
+        storage,
+    })
 }
 
 #[cfg(test)]
@@ -252,7 +275,7 @@ mod tests {
         for case in cases {
             let json = scval_to_json(&case);
             let parsed = json_to_scval(&json).expect("should parse");
-            
+
             // For strings, scval_to_json might have been passed a Symbol, but json_to_scval will parse it back as String.
             // Since we pass ScVal::String above, it matches exactly.
             assert_eq!(parsed, case, "failed on {:?}", case);
@@ -266,11 +289,15 @@ mod tests {
             vec![
                 ScMapEntry {
                     key: ScVal::U32(7),
-                    val: ScVal::String(ScString(StringM::try_from(b"from_number".to_vec()).unwrap())),
+                    val: ScVal::String(ScString(
+                        StringM::try_from(b"from_number".to_vec()).unwrap(),
+                    )),
                 },
                 ScMapEntry {
                     key: ScVal::String(ScString(StringM::try_from(b"7".to_vec()).unwrap())),
-                    val: ScVal::String(ScString(StringM::try_from(b"from_string".to_vec()).unwrap())),
+                    val: ScVal::String(ScString(
+                        StringM::try_from(b"from_string".to_vec()).unwrap(),
+                    )),
                 },
             ]
             .try_into()
@@ -280,7 +307,7 @@ mod tests {
         let json = scval_to_json(&map);
         // This should be the fallback array mode
         assert!(json.is_array());
-        
+
         let parsed = json_to_scval(&json).unwrap();
         assert_eq!(parsed, map);
     }
