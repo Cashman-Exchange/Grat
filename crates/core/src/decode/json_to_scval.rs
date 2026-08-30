@@ -2,9 +2,8 @@ use anyhow::{anyhow, Result};
 use serde_json::Value;
 use std::str::FromStr;
 use stellar_xdr::curr::{
-    ContractExecutable, Hash, Int128Parts, ScAddress, ScBytes, ScContractInstance,
-    ScError, ScErrorCode, ScMap, ScMapEntry, ScNonceKey, ScString, ScVal, ScVec, StringM,
-    UInt128Parts,
+    ContractExecutable, Hash, Int128Parts, ScAddress, ScBytes, ScContractInstance, ScError,
+    ScErrorCode, ScMap, ScMapEntry, ScNonceKey, ScString, ScVal, ScVec, StringM, UInt128Parts,
 };
 
 const MAX_SCVAL_DEPTH: usize = 100;
