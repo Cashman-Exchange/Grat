@@ -2,9 +2,9 @@ use anyhow::{anyhow, Result};
 use serde_json::Value;
 use std::str::FromStr;
 use stellar_xdr::curr::{
-    ContractExecutable, Hash, Int128Parts, Int256Parts, ScAddress, ScBytes, ScContractInstance,
-    ScError, ScErrorCode, ScMap, ScMapEntry, ScNonceKey, ScString, ScSymbol, ScVal, ScVec, StringM,
-    UInt128Parts, UInt256Parts,
+    ContractExecutable, Hash, Int128Parts, ScAddress, ScBytes, ScContractInstance,
+    ScError, ScErrorCode, ScMap, ScMapEntry, ScNonceKey, ScString, ScVal, ScVec, StringM,
+    UInt128Parts,
 };
 
 const MAX_SCVAL_DEPTH: usize = 100;
@@ -178,7 +178,6 @@ fn parse_error(obj: &serde_json::Map<String, Value>) -> Result<ScError> {
     let parse_code = |c: &Value| -> Result<ScErrorCode> {
         let code_str = c.as_str().ok_or_else(|| anyhow!("code must be string"))?;
         match code_str {
-            "UnknownError" => Ok(ScErrorCode::UnknownError),
             "UnexpectedType" => Ok(ScErrorCode::UnexpectedType),
             "UnexpectedSize" => Ok(ScErrorCode::UnexpectedSize),
             "MissingValue" => Ok(ScErrorCode::MissingValue),
@@ -256,7 +255,6 @@ fn parse_contract_instance(
 mod tests {
     use super::*;
     use crate::decode::scval_to_json;
-    use serde_json::json;
 
     #[test]
     fn test_roundtrip_primitives() {
