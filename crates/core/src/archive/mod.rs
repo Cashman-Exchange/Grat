@@ -1,9 +1,10 @@
-use crate::error::{ArchiveErrorKind, GratResult};
+use crate::error::{ArchiveErrorKind, GratError, GratResult};
 use crate::network::NetworkConfig;
 use flate2::read::GzDecoder;
 use std::io::Read;
 use stellar_xdr::curr::{LedgerHeader, LedgerHeaderHistoryEntry, Limits, ReadXdr};
 
+#[derive(Debug)]
 pub struct ArchiveClient {
     client: reqwest::Client,
     archive_urls: Vec<String>,
@@ -92,15 +93,22 @@ async fn fetch_and_decompress(
 }
 
 impl ArchiveClient {
-    pub fn new(config: &NetworkConfig) -> Self {
+    pub fn new(config: &NetworkConfig) -> GratResult<Self> {
+        if config.request_timeout_secs == 0 {
+            return Err(GratError::ConfigError(
+                "request timeout must be greater than zero".to_string(),
+            ));
+        }
+
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(config.request_timeout_secs))
             .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
-        Self {
+            .map_err(|e| GratError::ConfigError(format!("failed to build reqwest client: {e}")))?;
+
+        Ok(Self {
             client,
             archive_urls: config.archive_urls.clone(),
-        }
+        })
     }
 
     pub async fn fetch_checkpoint(&self, ledger_sequence: u32) -> GratResult<ArchiveCheckpoint> {
@@ -484,14 +492,14 @@ mod tests {
         // Test with trailing slash
         let url_with_slash = format!("{}/", url_raw);
         let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url_with_slash]);
-        let client = ArchiveClient::new(&config);
+        let client = ArchiveClient::new(&config).unwrap();
         let checkpoint = client.fetch_checkpoint(64).await.unwrap();
         assert_eq!(checkpoint.ledger_header, b"ledger");
 
         // Test without trailing slash
         let config_no_slash =
             NetworkConfig::custom("test", "", "").with_archive_urls(vec![url_raw]);
-        let client_no_slash = ArchiveClient::new(&config_no_slash);
+        let client_no_slash = ArchiveClient::new(&config_no_slash).unwrap();
         let checkpoint_no_slash = client_no_slash.fetch_checkpoint(64).await.unwrap();
         assert_eq!(checkpoint_no_slash.ledger_header, b"ledger");
 
@@ -514,7 +522,7 @@ mod tests {
 
         let (url, _handle) = start_mock_archive_server(ledger_gz, tx_gz, res_gz).await;
         let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url]);
-        let client = ArchiveClient::new(&config);
+        let client = ArchiveClient::new(&config).unwrap();
 
         let checkpoint = client.fetch_checkpoint(64).await.unwrap();
         assert_eq!(checkpoint.ledger_sequence, 127);
@@ -553,7 +561,7 @@ mod tests {
         .await;
 
         let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url1, url2]);
-        let client = ArchiveClient::new(&config);
+        let client = ArchiveClient::new(&config).unwrap();
 
         let checkpoint = client.fetch_checkpoint(64).await.unwrap();
         // Should succeed using second archive URL
@@ -576,7 +584,7 @@ mod tests {
         .await;
 
         let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![dead_url, url2]);
-        let client = ArchiveClient::new(&config);
+        let client = ArchiveClient::new(&config).unwrap();
 
         let checkpoint = client.fetch_checkpoint(64).await.unwrap();
         assert_eq!(checkpoint.ledger_header, b"l");
@@ -601,7 +609,7 @@ mod tests {
         .await;
 
         let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url1, url2]);
-        let client = ArchiveClient::new(&config);
+        let client = ArchiveClient::new(&config).unwrap();
 
         let checkpoint = client.fetch_checkpoint(64).await.unwrap();
         assert_eq!(checkpoint.ledger_header, b"l2");
@@ -624,7 +632,7 @@ mod tests {
         .await;
 
         let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url1, url2]);
-        let client = ArchiveClient::new(&config);
+        let client = ArchiveClient::new(&config).unwrap();
 
         let err = client.fetch_checkpoint(64).await.unwrap_err();
         if let GratError::ArchiveError(ArchiveErrorKind::FetchFailed { reason, .. }) = err {
@@ -658,7 +666,7 @@ mod tests {
         .await;
 
         let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url1, url2]);
-        let client = ArchiveClient::new(&config);
+        let client = ArchiveClient::new(&config).unwrap();
 
         // Fetch should fail completely rather than returning a partial checkpoint
         let err = client.fetch_checkpoint(64).await.unwrap_err();
@@ -793,9 +801,22 @@ mod tests {
 
         let (url, _handle) = start_mock_archive_server(ledger_gz, dummy_gz.clone(), dummy_gz).await;
         let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url]);
-        let client = ArchiveClient::new(&config);
+        let client = ArchiveClient::new(&config).unwrap();
 
         let header = client.get_ledger_header(64).await.unwrap();
         assert_eq!(header.ledger_seq, 64);
+    }
+
+    #[test]
+    fn test_archive_client_zero_timeout_error() {
+        let config = NetworkConfig::custom("test", "", "")
+            .with_archive_urls(vec!["http://example.com".to_string()]);
+        let mut config_zero = config.clone();
+        config_zero.request_timeout_secs = 0;
+        let err = ArchiveClient::new(&config_zero).unwrap_err();
+        assert!(matches!(
+            err,
+            GratError::ConfigError(ref msg) if msg.contains("timeout")
+        ));
     }
 }
