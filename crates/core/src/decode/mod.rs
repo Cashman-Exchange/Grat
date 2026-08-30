@@ -13,6 +13,7 @@ pub mod event_walker;
 pub mod fee_analyzer;
 pub mod function_call_decoder;
 pub mod host_error;
+pub mod json_to_scval;
 pub mod mappings;
 /// Envelope-level decoding that emits one diagnostic report per operation.
 pub mod multi_op_decoder;
@@ -31,6 +32,7 @@ pub use auth_address_nonce::AddressWithNonce;
 pub use chain_analyzer::{analyze_call_chain, CallChain, ChainAnalyzer, ChainFrame, FrameRole};
 pub use deepest_error::{find_deepest_error, DeepestError, DeepestErrorFinder};
 pub use function_call_decoder::{DecodedArgument, DecodedFunctionCall, FunctionCallDecoder};
+pub use json_to_scval::json_to_scval;
 pub use multi_op_decoder::{decode_transaction_with_op_filter, MultiOpDecoder};
 pub use resource_analyzer::{
     MetricDiagnostic, MetricKind, ResourceDiagnostics, ResourceUsageAnalyzer, TransactionResultMeta,
