@@ -5,14 +5,11 @@ use std::io::Read;
 use stellar_xdr::curr::{LedgerHeader, LedgerHeaderHistoryEntry, Limits, ReadXdr};
 
 pub struct ArchiveClient {
-    #[allow(dead_code)]
     client: reqwest::Client,
-
-    #[allow(dead_code)]
     archive_urls: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArchiveCheckpoint {
     pub ledger_sequence: u32,
 
@@ -21,6 +18,36 @@ pub struct ArchiveCheckpoint {
     pub transaction_set: Vec<u8>,
 
     pub transaction_results: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArchiveCategory {
+    Ledger,
+    Transactions,
+    Results,
+}
+
+impl ArchiveCategory {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Ledger => "ledger",
+            Self::Transactions => "transactions",
+            Self::Results => "results",
+        }
+    }
+}
+
+pub fn format_archive_path(category: ArchiveCategory, checkpoint_seq: u32) -> String {
+    let hex = format!("{checkpoint_seq:08x}");
+    let sub_dir = format!("{}/{}/{}", &hex[0..2], &hex[2..4], &hex[4..6]);
+    let cat = category.as_str();
+    format!("{cat}/{sub_dir}/{cat}-{hex}.xdr.gz")
+}
+
+fn join_url(base: &str, path: &str) -> String {
+    let base = base.trim_end_matches('/');
+    let path = path.trim_start_matches('/');
+    format!("{base}/{path}")
 }
 
 async fn fetch_and_decompress(
@@ -66,29 +93,29 @@ async fn fetch_and_decompress(
 
 impl ArchiveClient {
     pub fn new(config: &NetworkConfig) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(config.request_timeout_secs))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            client: reqwest::Client::new(),
+            client,
             archive_urls: config.archive_urls.clone(),
         }
     }
 
     pub async fn fetch_checkpoint(&self, ledger_sequence: u32) -> GratResult<ArchiveCheckpoint> {
         let checkpoint_seq = get_checkpoint_seq(ledger_sequence);
-        let hex = format!("{checkpoint_seq:08x}");
-        let sub_dir = format!("{}/{}/{}", &hex[0..2], &hex[2..4], &hex[4..6]);
 
-        let ledger_rel_path = format!("ledger/{}/ledger-{}.xdr.gz", sub_dir, hex);
-        let tx_rel_path = format!("transactions/{}/transactions-{}.xdr.gz", sub_dir, hex);
-        let results_rel_path = format!("results/{}/results-{}.xdr.gz", sub_dir, hex);
+        let ledger_rel_path = format_archive_path(ArchiveCategory::Ledger, checkpoint_seq);
+        let tx_rel_path = format_archive_path(ArchiveCategory::Transactions, checkpoint_seq);
+        let results_rel_path = format_archive_path(ArchiveCategory::Results, checkpoint_seq);
 
         let mut last_error = None;
 
         for base_url in &self.archive_urls {
-            let base = base_url.trim_end_matches('/');
-
-            let ledger_url = format!("{base}/{ledger_rel_path}");
-            let tx_url = format!("{base}/{tx_rel_path}");
-            let results_url = format!("{base}/{results_rel_path}");
+            let ledger_url = join_url(base_url, &ledger_rel_path);
+            let tx_url = join_url(base_url, &tx_rel_path);
+            let results_url = join_url(base_url, &results_rel_path);
 
             let ledger_header =
                 match fetch_and_decompress(&self.client, &ledger_url, &ledger_rel_path).await {
@@ -125,12 +152,16 @@ impl ArchiveClient {
             });
         }
 
-        let err = last_error.unwrap_or_else(|| ArchiveErrorKind::FetchFailed {
-            file: format!("checkpoint-{checkpoint_seq}"),
-            reason: "no archive URLs configured".to_string(),
-        });
+        let reason = match last_error {
+            Some(err) => err.to_string(),
+            None => "no archive URLs configured".to_string(),
+        };
 
-        Err(err.into())
+        Err(ArchiveErrorKind::FetchFailed {
+            file: format!("checkpoint-{checkpoint_seq}"),
+            reason,
+        }
+        .into())
     }
 
     pub async fn fetch_ledger_entry(
@@ -249,21 +280,10 @@ fn get_checkpoint_seq(ledger_sequence: u32) -> u32 {
 }
 
 #[cfg(test)]
-fn format_checkpoint_path(checkpoint_seq: u32) -> String {
-    let hex = format!("{checkpoint_seq:08x}");
-    format!(
-        "{}/{}/{}/ledger-{}.xdr.gz",
-        &hex[0..2],
-        &hex[2..4],
-        &hex[4..6],
-        hex
-    )
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::error::GratError;
+    use std::sync::{Arc, Mutex};
     use stellar_xdr::curr::{Hash, LedgerHeaderExt, LedgerHeaderHistoryEntryExt, WriteXdr};
 
     fn make_test_entry(ledger_seq: u32) -> LedgerHeaderHistoryEntry {
@@ -305,11 +325,347 @@ mod tests {
         out
     }
 
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    fn gzip_compress(data: &[u8]) -> Vec<u8> {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(data).unwrap();
+        encoder.finish().unwrap()
+    }
+
+    async fn start_recording_mock_server<F>(
+        recorded_paths: Arc<Mutex<Vec<String>>>,
+        handler: F,
+    ) -> (String, tokio::task::JoinHandle<()>)
+    where
+        F: Fn(&str) -> (u16, Vec<u8>) + Send + Sync + 'static,
+    {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let url = format!("http://127.0.0.1:{}", port);
+        let handler = std::sync::Arc::new(handler);
+
+        let handle = tokio::spawn(async move {
+            loop {
+                if let Ok((mut socket, _)) = listener.accept().await {
+                    let handler = handler.clone();
+                    let recorded_paths = recorded_paths.clone();
+                    tokio::spawn(async move {
+                        let mut buf = [0; 4096];
+                        if let Ok(n) = socket.read(&mut buf).await {
+                            if n == 0 {
+                                return;
+                            }
+                            let request = String::from_utf8_lossy(&buf[..n]);
+                            if let Some(line) = request.lines().next() {
+                                if let Some(path) = line.split_whitespace().nth(1) {
+                                    recorded_paths.lock().unwrap().push(path.to_string());
+                                    let (status_code, body) = handler(path);
+                                    let status_text = match status_code {
+                                        200 => "200 OK",
+                                        404 => "404 Not Found",
+                                        500 => "500 Internal Server Error",
+                                        _ => "500 Internal Server Error",
+                                    };
+
+                                    let response = format!(
+                                        "HTTP/1.1 {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                                        status_text,
+                                        body.len()
+                                    );
+                                    let _ = socket.write_all(response.as_bytes()).await;
+                                    let _ = socket.write_all(&body).await;
+                                    let _ = socket.flush().await;
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        (url, handle)
+    }
+
+    async fn start_mock_archive_server(
+        ledger_data: Vec<u8>,
+        tx_data: Vec<u8>,
+        res_data: Vec<u8>,
+    ) -> (String, tokio::task::JoinHandle<()>) {
+        start_recording_mock_server(Arc::new(Mutex::new(Vec::new())), move |path| {
+            if path.contains("ledger-") {
+                (200, ledger_data.clone())
+            } else if path.contains("transactions-") {
+                (200, tx_data.clone())
+            } else if path.contains("results-") {
+                (200, res_data.clone())
+            } else {
+                (404, Vec::new())
+            }
+        })
+        .await
+    }
+
     #[test]
-    fn test_checkpoint_path_format() {
-        let path = format_checkpoint_path(get_checkpoint_seq(64));
-        assert!(path.contains("ledger-"));
-        assert!(path.ends_with(".xdr.gz"));
+    fn test_checkpoint_calculation() {
+        assert_eq!(get_checkpoint_seq(0), 63);
+        assert_eq!(get_checkpoint_seq(1), 63);
+        assert_eq!(get_checkpoint_seq(62), 63);
+        assert_eq!(get_checkpoint_seq(63), 63);
+        assert_eq!(get_checkpoint_seq(64), 127);
+        assert_eq!(get_checkpoint_seq(127), 127);
+        assert_eq!(get_checkpoint_seq(128), 191);
+    }
+
+    #[test]
+    fn test_archive_path_formatting() {
+        // Test Category: Ledger
+        assert_eq!(
+            format_archive_path(ArchiveCategory::Ledger, 63),
+            "ledger/00/00/00/ledger-0000003f.xdr.gz"
+        );
+        assert_eq!(
+            format_archive_path(ArchiveCategory::Ledger, 0),
+            "ledger/00/00/00/ledger-00000000.xdr.gz"
+        );
+        assert_eq!(
+            format_archive_path(ArchiveCategory::Ledger, 64),
+            "ledger/00/00/00/ledger-00000040.xdr.gz"
+        );
+        assert_eq!(
+            format_archive_path(ArchiveCategory::Ledger, 127),
+            "ledger/00/00/00/ledger-0000007f.xdr.gz"
+        );
+        // Test a larger sequence
+        assert_eq!(
+            format_archive_path(ArchiveCategory::Ledger, 65535),
+            "ledger/00/00/ff/ledger-0000ffff.xdr.gz"
+        );
+
+        // Test other categories
+        assert_eq!(
+            format_archive_path(ArchiveCategory::Transactions, 63),
+            "transactions/00/00/00/transactions-0000003f.xdr.gz"
+        );
+        assert_eq!(
+            format_archive_path(ArchiveCategory::Results, 63),
+            "results/00/00/00/results-0000003f.xdr.gz"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_url_joining_normalization() {
+        let paths = Arc::new(Mutex::new(Vec::new()));
+        let ledger_gz = gzip_compress(b"ledger");
+        let tx_gz = gzip_compress(b"tx");
+        let results_gz = gzip_compress(b"results");
+
+        let l_gz = ledger_gz.clone();
+        let t_gz = tx_gz.clone();
+        let r_gz = results_gz.clone();
+
+        let (url_raw, _handle) = start_recording_mock_server(paths.clone(), move |path| {
+            if path.contains("ledger-") {
+                (200, l_gz.clone())
+            } else if path.contains("transactions-") {
+                (200, t_gz.clone())
+            } else if path.contains("results-") {
+                (200, r_gz.clone())
+            } else {
+                (404, Vec::new())
+            }
+        })
+        .await;
+
+        // Test with trailing slash
+        let url_with_slash = format!("{}/", url_raw);
+        let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url_with_slash]);
+        let client = ArchiveClient::new(&config);
+        let checkpoint = client.fetch_checkpoint(64).await.unwrap();
+        assert_eq!(checkpoint.ledger_header, b"ledger");
+
+        // Test without trailing slash
+        let config_no_slash =
+            NetworkConfig::custom("test", "", "").with_archive_urls(vec![url_raw]);
+        let client_no_slash = ArchiveClient::new(&config_no_slash);
+        let checkpoint_no_slash = client_no_slash.fetch_checkpoint(64).await.unwrap();
+        assert_eq!(checkpoint_no_slash.ledger_header, b"ledger");
+
+        // Verify no double slashes in paths
+        let recorded = paths.lock().unwrap();
+        for path in recorded.iter() {
+            assert!(!path.contains("//"), "Path contains double slash: {}", path);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_fetch_checkpoint_success() {
+        let ledger_data = b"my_ledger_payload";
+        let tx_data = b"my_tx_payload";
+        let res_data = b"my_res_payload";
+
+        let ledger_gz = gzip_compress(ledger_data);
+        let tx_gz = gzip_compress(tx_data);
+        let res_gz = gzip_compress(res_data);
+
+        let (url, _handle) = start_mock_archive_server(ledger_gz, tx_gz, res_gz).await;
+        let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url]);
+        let client = ArchiveClient::new(&config);
+
+        let checkpoint = client.fetch_checkpoint(64).await.unwrap();
+        assert_eq!(checkpoint.ledger_sequence, 127);
+        assert_eq!(checkpoint.ledger_header, ledger_data);
+        assert_eq!(checkpoint.transaction_set, tx_data);
+        assert_eq!(checkpoint.transaction_results, res_data);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_checkpoint_failover_non_2xx() {
+        let paths = Arc::new(Mutex::new(Vec::new()));
+        // First server returns 404 for results
+        let (url1, _h1) = start_recording_mock_server(paths.clone(), move |path| {
+            if path.contains("ledger-") {
+                (200, gzip_compress(b"l1"))
+            } else if path.contains("transactions-") {
+                (200, gzip_compress(b"tx1"))
+            } else {
+                (404, Vec::new()) // Fail results
+            }
+        })
+        .await;
+
+        // Second server succeeds
+        let (url2, _h2) = start_recording_mock_server(paths.clone(), move |path| {
+            if path.contains("ledger-") {
+                (200, gzip_compress(b"l2"))
+            } else if path.contains("transactions-") {
+                (200, gzip_compress(b"tx2"))
+            } else if path.contains("results-") {
+                (200, gzip_compress(b"res2"))
+            } else {
+                (404, Vec::new())
+            }
+        })
+        .await;
+
+        let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url1, url2]);
+        let client = ArchiveClient::new(&config);
+
+        let checkpoint = client.fetch_checkpoint(64).await.unwrap();
+        // Should succeed using second archive URL
+        assert_eq!(checkpoint.ledger_header, b"l2");
+        assert_eq!(checkpoint.transaction_set, b"tx2");
+        assert_eq!(checkpoint.transaction_results, b"res2");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_checkpoint_failover_network_failure() {
+        // First archive URL is completely dead/unreachable
+        let dead_url = "http://127.0.0.1:1".to_string();
+
+        // Second server succeeds
+        let (url2, _h2) = start_mock_archive_server(
+            gzip_compress(b"l"),
+            gzip_compress(b"tx"),
+            gzip_compress(b"res"),
+        )
+        .await;
+
+        let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![dead_url, url2]);
+        let client = ArchiveClient::new(&config);
+
+        let checkpoint = client.fetch_checkpoint(64).await.unwrap();
+        assert_eq!(checkpoint.ledger_header, b"l");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_checkpoint_failover_invalid_gzip() {
+        // First server returns raw uncompressed bytes (invalid gzip)
+        let (url1, _h1) = start_mock_archive_server(
+            b"not_gzip_at_all".to_vec(),
+            gzip_compress(b"tx1"),
+            gzip_compress(b"res1"),
+        )
+        .await;
+
+        // Second server succeeds
+        let (url2, _h2) = start_mock_archive_server(
+            gzip_compress(b"l2"),
+            gzip_compress(b"tx2"),
+            gzip_compress(b"res2"),
+        )
+        .await;
+
+        let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url1, url2]);
+        let client = ArchiveClient::new(&config);
+
+        let checkpoint = client.fetch_checkpoint(64).await.unwrap();
+        assert_eq!(checkpoint.ledger_header, b"l2");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_checkpoint_all_archives_fail() {
+        let (url1, _h1) = start_mock_archive_server(
+            gzip_compress(b"l1"),
+            gzip_compress(b"tx1"),
+            b"invalid".to_vec(), // fail results
+        )
+        .await;
+
+        let (url2, _h2) = start_mock_archive_server(
+            b"invalid".to_vec(), // fail ledger
+            gzip_compress(b"tx2"),
+            gzip_compress(b"res2"),
+        )
+        .await;
+
+        let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url1, url2]);
+        let client = ArchiveClient::new(&config);
+
+        let err = client.fetch_checkpoint(64).await.unwrap_err();
+        if let GratError::ArchiveError(ArchiveErrorKind::FetchFailed { reason, .. }) = err {
+            // Confirm it matches FetchFailed
+            assert!(
+                reason.contains("DecompressionFailed")
+                    || reason.contains("decompression failed")
+                    || reason.contains("HTTP status")
+                    || reason.contains("failed to fetch")
+            );
+        } else {
+            panic!("Expected FetchFailed archive error, got: {:?}", err);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_fetch_checkpoint_no_partial() {
+        // Check that we never combine responses from different archives
+        let (url1, _h1) = start_mock_archive_server(
+            gzip_compress(b"l1"),
+            gzip_compress(b"tx1"),
+            b"invalid".to_vec(), // fail results
+        )
+        .await;
+
+        let (url2, _h2) = start_mock_archive_server(
+            b"invalid".to_vec(), // fail ledger
+            gzip_compress(b"tx2"),
+            gzip_compress(b"res2"),
+        )
+        .await;
+
+        let config = NetworkConfig::custom("test", "", "").with_archive_urls(vec![url1, url2]);
+        let client = ArchiveClient::new(&config);
+
+        // Fetch should fail completely rather than returning a partial checkpoint
+        let err = client.fetch_checkpoint(64).await.unwrap_err();
+        assert!(matches!(
+            err,
+            GratError::ArchiveError(ArchiveErrorKind::FetchFailed { .. })
+        ));
     }
 
     #[test]
@@ -424,59 +780,6 @@ mod tests {
         } else {
             panic!("expected MalformedXdr error, got {:?}", err);
         }
-    }
-
-    use flate2::write::GzEncoder;
-    use flate2::Compression;
-    use std::io::Write;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::TcpListener;
-
-    fn gzip_compress(data: &[u8]) -> Vec<u8> {
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(data).unwrap();
-        encoder.finish().unwrap()
-    }
-
-    async fn start_mock_archive_server(
-        ledger_data: Vec<u8>,
-        tx_data: Vec<u8>,
-        res_data: Vec<u8>,
-    ) -> (String, tokio::task::JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let port = listener.local_addr().unwrap().port();
-        let url = format!("http://127.0.0.1:{}", port);
-
-        let handle = tokio::spawn(async move {
-            for _ in 0..3 {
-                if let Ok((mut socket, _)) = listener.accept().await {
-                    let mut buf = [0; 1024];
-                    let n = socket.read(&mut buf).await.unwrap();
-                    let request = String::from_utf8_lossy(&buf[..n]);
-
-                    let (status, body) = if request.contains("ledger-") {
-                        ("200 OK", &ledger_data)
-                    } else if request.contains("transactions-") {
-                        ("200 OK", &tx_data)
-                    } else if request.contains("results-") {
-                        ("200 OK", &res_data)
-                    } else {
-                        ("404 Not Found", &Vec::new())
-                    };
-
-                    let response = format!(
-                        "HTTP/1.1 {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                        status,
-                        body.len()
-                    );
-                    socket.write_all(response.as_bytes()).await.unwrap();
-                    socket.write_all(body).await.unwrap();
-                    socket.flush().await.unwrap();
-                }
-            }
-        });
-
-        (url, handle)
     }
 
     #[tokio::test]
