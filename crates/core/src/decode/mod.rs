@@ -20,6 +20,7 @@ pub mod report;
 pub mod resource_analyzer;
 pub mod return_decoder;
 pub mod scval_to_json;
+pub mod json_to_scval;
 pub mod walker;
 
 pub use argument_decoder::ArgumentDecoder;
@@ -37,6 +38,7 @@ pub use resource_analyzer::{
 };
 pub use return_decoder::ReturnValueDecoder;
 pub use scval_to_json::scval_to_json;
+pub use json_to_scval::json_to_scval;
 pub use walker::{
     walk_diagnostic_events, DiagnosticEventKind, DiagnosticEventWalker, StructuredDiagnosticEvent,
 };
