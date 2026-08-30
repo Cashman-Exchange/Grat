@@ -15,6 +15,7 @@ const BUILD_HASH: &str = env!("GRAT_BUILD_HASH");
 #[derive(Parser)]
 #[command(name = "grat", version = env!("CARGO_PKG_VERSION"), about, long_about = None)]
 #[command(propagate_version = true)]
+#[command(before_help = ui::logo::GRAT_LOGO)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -172,7 +173,8 @@ async fn main() -> anyhow::Result<()> {
 
 fn build_version() -> String {
     format!(
-        "grat {} (build: {}) | Soroban Protocol: {}",
+        "{}\ngrat {} (build: {}) | Soroban Protocol: {}",
+        ui::logo::GRAT_LOGO,
         grat_core::VERSION,
         BUILD_HASH,
         grat_core::SOROBAN_PROTOCOL_VERSION
