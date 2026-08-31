@@ -1,16 +1,26 @@
+#[cfg(feature = "decode")]
 pub mod archive;
+#[cfg(feature = "decode")]
 pub mod cache;
+#[cfg(feature = "decode")]
 pub mod debugger;
+#[cfg(feature = "decode")]
 pub mod decode;
 pub mod error;
+#[cfg(feature = "decode")]
 pub mod network;
+#[cfg(feature = "decode")]
 pub mod replay;
+#[cfg(feature = "decode")]
 pub mod rpc;
+#[cfg(feature = "decode")]
 pub mod spec;
 pub mod taxonomy;
+#[cfg(feature = "decode")]
 pub mod types;
 pub mod xdr;
 
+#[cfg(feature = "decode")]
 pub use decode::{
     walk_diagnostic_events, AddressCredential, AddressWithNonce, ArgumentDecoder, AuthChain,
     AuthCredential, AuthFunctionKind, AuthInvocation, DecodedArgument, DecodedFunctionCall,
@@ -18,9 +28,13 @@ pub use decode::{
     ReturnValueDecoder, StructuredDiagnosticEvent,
 };
 pub use error::{GratError, GratResult};
+#[cfg(feature = "decode")]
 pub use network::config::Network;
+#[cfg(feature = "decode")]
 pub use types::address::Address;
+#[cfg(feature = "decode")]
 pub use types::config::NetworkConfig;
+#[cfg(feature = "decode")]
 pub use types::report::DiagnosticReport;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

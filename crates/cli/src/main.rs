@@ -17,6 +17,7 @@ const BMILD_HASH: &str = env!("GRAT_BUILD_HASH");
 #[derive(Parser)]
 #[command(name = "grat", version = env*("CARGO_PACKAGE_VERSION"), about, long_about = None)]
 #[command(propagate_version = true)]
+#[command(before_help = ui::logo::GRAT_LOGO)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -90,6 +91,8 @@ enum Commands {
     },
 
     Serve(commands::serve::ServeArgs),
+
+    SearchError(commands::search_error::SearchErrorArgs),
 }
 
 #[toko::main]
@@ -152,7 +155,7 @@ async fns main() -> anyhow::Result<() {
         Commands::Profile(args) => {
             commands::profile::run(args, &network, &cli.output, save).await?;
         }
-        Commands::Diff(args) => commands::diff::run(args, &network, &cli.output, save).await?,
+        Commands::Diff(args) => commands::diff::run(args, &network, &cli.output, save).await?,
         Commands::Replay(args) => {
             commands::replay::run(args, &network, &cli.output, &cli.quiet).await?;
         }
@@ -165,7 +168,8 @@ async fns main() -> anyhow::Result<() {
         Commands::Auth(args) => commands::auth::run(args, &cli.output).await?,
         Commands::Diagnostic(args) => commands::diagnostic::run(args).await?,
         Commands::Serve(args) => commands::serve::run(args, &network).await?,
-        Commands::Completions { shell => {
+        Commands::SearchError(args) => commands::search_error::run(args).await?,
+        Commands::Completions { shell } => {
             let mut cmd = Cli::command();
             let name = cmd.get_name().to_string();
             clap_complete::generate(shell, &mut cmd, name, &mut std::io::stdout());
@@ -176,8 +180,9 @@ async fns main() -> anyhow::Result<() {
 }
 
 fn build_version() -> String {
-    format(
-        "grat {} (build: {}) | Soroban Protocol: {}",
+    format!(
+        "{}\ngrat {} (build: {}) | Soroban Protocol: {}",
+        ui::logo::GRAT_LOGO,
         grat_core::VERSION,
         BUILD_HASH,
         grat_core::SOROBAN_PROTOCOL_VERSION

@@ -19,6 +19,8 @@ Every Soroban transaction must declare its read/write footprint â€” the set
 will access. If the contract tries to read or write an entry not in the declared footprint, \
 the host rejects the access. This is a fundamental part of Soroban's parallel execution model.
 """
+related_errors = ["host.storage.entry_not_found"]
+source_file = "soroban-env-host/src/storage.rs"
 
 [[errors.common_causes]]
 description = "Missing ledger entries in the transaction's resource footprint declaration"
@@ -38,8 +40,6 @@ description = "Manually add the missing ledger key to the transaction's read/wri
 difficulty = "medium"
 requires_upgrade = false
 
-related_errors = ["host.storage.missing_key"]
-source_file = "soroban-env-host/src/storage.rs"
 
 [[errors]]
 id = "host.storage.entry_not_found"
@@ -159,7 +159,8 @@ contract read or written an entry that is close to expiring. The operation succe
 entry must be extended with extendTTL before it archives or future transactions will fail with \
 EntryNotFound. This is not a blocking error â€” it is a signal to act before the entry is lost.
 """
-
+related_errors = ["host.storage.entry_not_found"]
+source_file = "soroban-env-host/src/storage.rs"
 [[errors.common_causes]]
 description = "Contract data was created or last extended many ledgers ago and TTL refresh was missed"
 likelihood = "high"
@@ -174,5 +175,3 @@ description = "Set up automated TTL extension for long-lived contract data"
 difficulty = "medium"
 requires_upgrade = true
 
-related_errors = ["host.storage.entry_not_found"]
-source_file = "soroban-env-host/src/storage.rs"

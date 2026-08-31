@@ -758,30 +758,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_ledger_entries_empty_response() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        let rpc_url = format!("http://{addr}");
-
-        let config = NetworkConfig {
-            network: crate::network::Network::Testnet,
-            rpc_url,
-            network_passphrase: "test".to_string(),
-            archive_urls: vec![],
-            api_key: None,
-            request_timeout_secs: 30,
-        };
-        let client = SorobanRpcClient::new(&config);
-
-        tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.unwrap();
-            let body = r#"{"jsonrpc":"2.0","id":1,"result":{"latestLedger":123,"entries":[]}}"#;
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                body.len(),
-                body
-            );
-            socket.write_all(response.as_bytes()).await.unwrap();
-        });
+        let body = r#"{"jsonrpc":"2.0","id":1,"result":{"latestLedger":123,"entries":[]}}"#;
+        let responses = vec![http_response(200, "OK", body)];
+        let addr = spawn_mock_server(responses).await;
+        let client = make_client(addr);
 
         let result = client
             .get_ledger_entries(&["key1".to_string()])
@@ -826,33 +806,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_transaction_mocked_response() {
-        use tokio::io::AsyncWriteExt;
-        use tokio::net::TcpListener;
-
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        let rpc_url = format!("http://{addr}");
-
-        let config = NetworkConfig {
-            network: crate::network::Network::Testnet,
-            rpc_url,
-            network_passphrase: "test".to_string(),
-            archive_urls: vec![],
-            api_key: None,
-            request_timeout_secs: 30,
-        };
-        let client = SorobanRpcClient::new(&config);
-
-        tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.unwrap();
-            let body = r#"{"jsonrpc":"2.0","id":1,"result":{"status":"SUCCESS","latestLedger":123,"latestLedgerCloseTime":1711620000,"ledger":120}}"#;
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                body.len(),
-                body
-            );
-            socket.write_all(response.as_bytes()).await.unwrap();
-        });
+        let body = r#"{"jsonrpc":"2.0","id":1,"result":{"status":"SUCCESS","latestLedger":123,"latestLedgerCloseTime":1711620000,"ledger":120}}"#;
+        let responses = vec![http_response(200, "OK", body)];
+        let addr = spawn_mock_server(responses).await;
+        let client = make_client(addr);
 
         let result = client.get_transaction("hash123").await.unwrap();
         assert_eq!(result.status, TransactionStatus::Success);
@@ -942,31 +899,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_simulate_transaction_returns_rpc_error_on_failure() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        let rpc_url = format!("http://{addr}");
-
-        let config = NetworkConfig {
-            network: crate::network::Network::Testnet,
-            rpc_url,
-            network_passphrase: "test".to_string(),
-            archive_urls: vec![],
-            api_key: None,
-            request_timeout_secs: 30,
-        };
-        let client = SorobanRpcClient::new(&config);
-
-        tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.unwrap();
-            let body =
-                r#"{"jsonrpc":"2.0","id":1,"result":{"latestLedger":100,"error":"contract trap"}}"#;
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                body.len(),
-                body
-            );
-            socket.write_all(response.as_bytes()).await.unwrap();
-        });
+        let body =
+            r#"{"jsonrpc":"2.0","id":1,"result":{"latestLedger":100,"error":"contract trap"}}"#;
+        let responses = vec![http_response(200, "OK", body)];
+        let addr = spawn_mock_server(responses).await;
+        let client = make_client(addr);
 
         let result = client.simulate_transaction("AAAA").await;
         assert!(result.is_err());

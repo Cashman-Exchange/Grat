@@ -22,6 +22,8 @@ returns an error value, the host wraps it as a ContractError with the numeric co
 To understand a contract error, you need the contract's specification (contractspecv0 metadata) \
 which maps the numeric code to a human-readable name and optional documentation.
 """
+related_errors = ["host.auth.not_authorized"]
+source_file = "soroban-env-host/src/host.rs"
 
 [[errors.common_causes]]
 description = "Business logic assertion failure in the contract (e.g., insufficient balance, invalid state)"
@@ -45,8 +47,6 @@ description = "Review the contract source code for the error enum definition to 
 difficulty = "medium"
 requires_upgrade = false
 
-related_errors = ["host.auth.not_authorized"]
-source_file = "soroban-env-host/src/host.rs"
 
 
 [[errors]]
@@ -61,6 +61,8 @@ detailed_explanation = """
 The contract encountered an internal error during execution, indicating a protocol \
 implementation issue or invalid ledger state.
 """
+related_errors = []
+source_file = "soroban-env-host/src/host.rs"
 
 [[errors.common_causes]]
 description = "Internal validation or state consistency checks failed in the contract"
@@ -76,8 +78,6 @@ description = "Compare host and SDK versions between simulation and submission t
 difficulty = "medium"
 requires_upgrade = false
 
-related_errors = []
-source_file = "soroban-env-host/src/host.rs"
 
 
 [[errors]]
@@ -92,6 +92,8 @@ detailed_explanation = """
 The contract attempted an operation that is unsupported by the contract configuration or type \
 (e.g., performing a clawback on an asset when clawback is disabled).
 """
+related_errors = []
+source_file = "soroban-env-host/src/host.rs"
 
 [[errors.common_causes]]
 description = "Invoking clawback on a non-clawbackable asset"
@@ -107,8 +109,6 @@ description = "Re-check the asset's issuer-set flags (e.g. AUTH_REQUIRED, CLAWBA
 difficulty = "easy"
 requires_upgrade = false
 
-related_errors = []
-source_file = "soroban-env-host/src/host.rs"
 
 
 [[errors]]
@@ -122,6 +122,8 @@ summary = "The contract instance has already been initialized and cannot be re-i
 detailed_explanation = """
 The contract instance was initialized twice. Soroban contracts typically only allow initialization once.
 """
+related_errors = []
+source_file = "soroban-env-host/src/host.rs"
 
 [[errors.common_causes]]
 description = "Calling the initialize function on an already initialized contract instance"
@@ -137,8 +139,6 @@ description = "Guard the initialize function with a storage check (e.g. instance
 difficulty = "easy"
 requires_upgrade = false
 
-related_errors = []
-source_file = "soroban-env-host/src/host.rs"
 
 
 [[errors]]
@@ -152,7 +152,8 @@ summary = "An account involved in the transaction does not exist on the network.
 detailed_explanation = """
 The operation required a specific account to exist on the network, but the account could not be found.
 """
-
+related_errors = []
+source_file = "soroban-env-host/src/host.rs"
 [[errors.common_causes]]
 description = "Providing an invalid account address or an account that has not been created/funded"
 likelihood = "high"
@@ -167,5 +168,3 @@ description = "Fund and create the account on the target network before invoking
 difficulty = "easy"
 requires_upgrade = false
 
-related_errors = []
-source_file = "soroban-env-host/src/host.rs"

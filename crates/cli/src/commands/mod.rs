@@ -9,6 +9,7 @@ pub mod export;
 pub mod inspect;
 pub mod profile;
 pub mod replay;
+pub mod search_error;
 pub mod serve;
 pub mod trace;
 pub mod whatif;

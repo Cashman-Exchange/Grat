@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TaxonomyEntry {
     pub id: String,
 
@@ -37,6 +38,7 @@ pub struct TaxonomyEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TaxonomyCause {
     pub description: String,
 
@@ -44,6 +46,7 @@ pub struct TaxonomyCause {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TaxonomyFix {
     pub description: String,
 
@@ -91,12 +94,14 @@ impl std::fmt::Display for ErrorCategory {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TaxonomySchema {
     pub category: CategoryMeta,
     pub errors: Vec<TaxonomyEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CategoryMeta {
     pub name: String,
     pub description: String,
