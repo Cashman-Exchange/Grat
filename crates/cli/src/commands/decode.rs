@@ -38,6 +38,12 @@ pub async fn run(
         reports
     };
 
+    if !args.raw {
+        if let Err(e) = crate::commands::history::append_to_history(&args.tx_hash) {
+            eprintln!("Warning: failed to update command history: {e}");
+        }
+    }
+
     for (i, report) in reports.iter().enumerate() {
         if reports.len() > 1 {
             println!("\n=== Operation {} ===", i + 1);
