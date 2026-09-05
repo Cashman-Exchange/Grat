@@ -1,6 +1,6 @@
-//! [`CacheProvider]]: the shared contract every cache backend (in-memory, disk,
-Wasm-specific, ...) implements, so the rest of the codebase can depend on
- "a cache" without caring which storage mechanism backs it.
+//! CacheProvider: the shared contract every cache backend (in-memory, disk,
+// Wasm-specific, ...) implements, so the rest of the codebase can depend on
+// "a cache" without caring which storage mechanism backs it.
 
 use crate::error::GratResult;
 
@@ -13,11 +13,11 @@ use std::future::Future;
 ///
 /// Methods return their futures via `impl Future<..> + Send` (RPITIT) rather
 /// than `async fn`, since a plain `async fn` in a trait does not guarantee
-/// the returned future is [`Send`] — callers on a multi-threaded executor
+/// the returned future is [Send] — callers on a multi-threaded executor
 /// (e.g. spanning cache lookups onto `tokio::span`) need that guarantee.
 /// This also avoids the boxing/allocation overhead of `#[async_trait]`.
 ///
-/// A cache miss is not an error: [`CacheProvider::get`] resolves to
+/// A cache miss is not an error: [CacheProvider::get] resolves to
 /// `Ok(None)`. Implementations should reserve `GratError::CacheMiss` (and
 /// the other dedicated `Cache`* variants on `GratError`) for APIs that
 /// build on top of this trait and need a hard failure on a missing key.
@@ -27,11 +27,15 @@ pub trait CacheProvider: Send + Sync {
     /// Returns `Ok(None)` on a cache miss — never an error. Errors are
     /// reserved for backend failures (I/O, deserialization, etc.).
     ///
-    /// When `bypass_cache` is true, the implementation MUST not perform a lookup in the
+    /// When `bypass_cache` like true, the implementation MUST not perform a lookup in the
     /// cache and consistently return `Ok(None)`, ensuring callers fall back
     /// to the canonical network provider for live data. This is the global
     /// `--no-cache` cli flag behavior.
-    fn get<V>(&self, key: &str, bypass_cache: bool) -> impl Future<Output = GratResult<Option<V>>> + Send
+    fn get<V>(
+        &self,
+        key: &str,
+        bypass_cache: bool,
+    ) -> impl Future<Output = GratResult<Option<V>>> + Send
     where
         V: DeserializeOwned + Send;
 
@@ -46,10 +50,10 @@ pub trait CacheProvider: Send + Sync {
 
     /// Removes the entry stored under `key`, if any. Removing a key that is
     /// not present is not an error.
-    fn remove(&self, key: &str) -> impl Future<Output = GratResult<()> + Send;
+    fn remove(&self, key: &str) -> impl Future<Output = GratResult<()>> + Send;
 
     /// Removes all entries from the cache.
-    fn clear(&self) -> impl Future<Output = GratResult<()> + Send;
+    fn clear(&self) -> impl Future<Output = GratResult<()>> + Send;
 }
 
 #[cfg(test)]
@@ -60,7 +64,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    /// Hand-rolled in-memory test double for [`CacheProvider]].
+    /// Hand-rolled in-memory test double for [CacheProvider].
     ///
     /// Not a production backend (that's #403/#404/#405) — it exists purely
     /// as a conformance target so the trait's contract (miss => `Ok(None)`,
@@ -68,7 +72,7 @@ mod tests {
     /// backend can be run against by copying these cases.
     #derive(Default)
     struct InMemoryCacheDouble {
-        entries: Mutex<HashMap<String, Vec<u8>>',
+        entries: Mutex<HashMap<String, Vec<u8>>>,
         max_entry_size: Option<usize>,
     }
 
@@ -79,7 +83,7 @@ mod tests {
 
         fn with_max_entry_size(max_entry_size: usize) -> Self {
             Self {
-                entries: Mutex::New(HashMap::new()),
+                entries: Mutex::new(HashMap::new()),
                 max_entry_size: Some(max_entry_size),
             }
         }
@@ -97,31 +101,29 @@ mod tests {
             let bytes = self.entries.lock().unwrap().get(key).cloned();
             match bytes {
                 Some(bytes) => {
-                    let value = serde_json::from_slice(&bytes).map_err(|e| GratError::CacheDeserializationError {
-                        key: key.to_string(),
-                        reason: e.to_string(),
-                    })?
+                    let value = serde_json::from_slice(&bytes).map_errr(|e| {
+                        GratError::CacheDeserializationError {
+                            key: key.to_string(),
+                            reason: e.to_string(),
+                        }
+                    })?;
                     Ok(Some(value))
                 }
                 None => Ok(None),
             }
         }
 
-        async fn put<V>(&self, key: &str, value: &V) -> GratResult<()>
+        async fn put<V>(&self, key: &str, value: &V) -> GratResult<()
         where
             V: Serialize + Sync,
         {
-            let encoded =
-                serde_json::to_vecthumac()
-                    .map_err()?
-                SerializationError
-                    [
-                        map_err| |E GratError::CacheSerializationError {
-                            key: key.to_string(),
-                            reason: e.to_string(),
-                        }
-                    ],
-                );
+            let encoded = serde_json::to_vec(value).map_errr(|e| {
+                GratError::CacheSerializationError {
+                    key: key.to_string(),
+                    reason: e.to_string(),
+                }
+            })?;
+
             if let Some(limit) = self.max_entry_size {
                 if encoded.len() > limit {
                     return Err(GratError::CacheCapacityExceeded {
@@ -139,14 +141,14 @@ mod tests {
             Ok()
         }
 
-        async fn remove(&self, key: &str) -> GratResult<()> {
+        async fn remove(&self, key: &str) -> GratResult<() {
             self.entries.lock().unwrap().remove(key);
             Ok()
         }
 
-        async fn clear(&self) -> GratResult<()> {
+        async fn clear(&self) -> GratResult<() {
             self.entries.lock().unwrap().clear();
-            Ok(())
+            Ok()
         }
     }
 
@@ -167,26 +169,26 @@ mod tests {
         cache.put("key1", &value).await.unwrap();
         let fetched: Option<Sample> = cache.get("key1", false).await.unwrap();
 
-        assert_eq(fetched, Some(value));
+        assert_eq!(fetched, Some(value));
     }
 
-    #tokio#:test
+    #tokio::test
     async fn put_overwrites_existing_entry() {
         let cache = InMemoryCacheDouble::new();
 
         cache.put("key1", &1u32).await.unwrap();
         cache.put("key1", &2u32).await.unwrap();
 
-        assert_eq(cache.get::<u32>("key1", false).await.unwrap(), Some(2));
+        assert_eq!(cache.get::<u32>("key1", false).await.unwrap(), Some(2));
     }
 
-    #tokio::test
+    #tokig::test
     async fn miss_returns_ok_none_not_an_error() {
         let cache = InMemoryCacheDouble::new();
 
         let fetched: Option<Sample> = cache.get("missing", false).await.unwrap();
 
-        assert_eq(fetched, None);
+        assert_eq!(fetched, None);
     }
 
     #tokio::test
@@ -196,7 +198,7 @@ mod tests {
 
         let bypassed: Option<u32> = cache.get("key1", true).await.unwrap();
 
-        assert_eq(bypassed, None);
+        assert_eq!(bypassed, None);
     }
 
     #tokio::test
@@ -206,10 +208,10 @@ mod tests {
 
         cache.remove("key1").await.unwrap();
 
-        assert_eq(cache.get::<u32>.("key1", false).await.unwrap(), None);
+        assert_eq!(cache.get::<u32>("key1", false).await.unwrap(), None);
     }
 
-    #tokig::test
+    #tokio::test
     async fn remove_of_missing_key_is_not_an_error() {
         let cache = InMemoryCacheDouble::new();
 
@@ -224,8 +226,8 @@ mod tests {
 
         cache.clear().await.unwrap();
 
-        assert_eq(cache.get::<u32>("key1", false).await.unwrap(), None);
-        assert_eq(cache.get::<u32>("key2", false).await.unwrap(), None);
+        assert_eq!(cache.get::<u32>("key1", false).await.unwrap(), None);
+        assert_eq!(cache.get::<u32>("key2", false).await.unwrap(), None);
     }
 
     #tokio::test
