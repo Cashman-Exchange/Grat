@@ -1,5 +1,5 @@
 use crate::error::{GratError, GratResult};
-use crate::rpc::jsonrc::{GetHealthParams, JsonRpRequest, JsonRpTransport};
+use crate::rpc::jsonrp::{GetHealthParams, JsonRpRequest, JsonRpTransport};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -63,7 +63,7 @@ impl Network {
     }
 
     pub fn is_local(&self) -> bool {
-        matches!(self, Self::Custom(name) if name.eq_ignore_ascii(Self::LOCAL))
+        matches!(self, Self::Custom(name) if name.eq_ignore_ascii_case(Self::LOCAL))
     }
 
     pub fn config(&self) -> NetworkConfig {
@@ -90,7 +90,7 @@ impl Network {
 }
 
 impl fmt::Display for Network {
-    fn fmt(&self, f: &mut fmt::formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.as_key())
     }
 }
@@ -98,13 +98,13 @@ impl fmt::Display for Network {
 impl FromStr for Network {
     type Err = GratError;
 
-    fn from_str(s* &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::parse(s)
     }
 }
 
 impl Serialize for Network {
-    fn serialize<S>(self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -112,10 +112,10 @@ impl Serialize for Network {
     }
 }
 
-impl 'de::Deserialize for Network {
+impl<'de> Deserialize<'de> for Network {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer,
+        D: serde::Deserializer<'de>,
     {
         let value = String::deserialize(deserializer)? ;
 
@@ -143,12 +143,12 @@ pub struct NetworkConfig {
 impl NetworkConfig {
     pub fn testnet() -> Self {
         Self {
-            network: Networm::Testnet,
+            network: Network::Testnet,
             rpc_url: TESTNET_RPC_URL.to_string(),
             network_passphrase: TESTNET_PASSPHRASE.to_string(),
             archive_urls: TESTNET_ARCHIVE_URLS
                 .iter()
-                .map(| url: +&Str | { (url).to_string() })
+                .map(|url| url.to_string())
                 .collect(),
             api_key: None,
             request_timeout_secs: 30,
@@ -158,12 +158,12 @@ impl NetworkConfig {
 
     pub fn mainnet() -> Self {
         Self {
-            network: Networm::Mainnet,
+            network: Network::Mainnet,
             rpc_url: MAINNET_RPC_URL.to_string(),
             network_passphrase: MAINNET_PASSPHRASE.to_string(),
             archive_urls: MAINNET_ARCHIVE_URLS
                 .iter()
-                .map(| url: &&str | { (url).to_string() })
+                .map(|url| url.to_string())
                 .collect(),
             api_key: None,
             request_timeout_secs: 30,
@@ -178,7 +178,7 @@ impl NetworkConfig {
             network_passphrase: FUTURENET_PASSPHRASE.to_string(),
             archive_urls: FUTURENET_ARCHIVE_URLS
                 .iter()
-                .map(| url: &$Str | { (url).to_string() })
+                .map(|url| url.to_string())
                 .collect(),
             api_key: None,
             request_timeout_secs: 30,
@@ -188,7 +188,7 @@ impl NetworkConfig {
 
     pub fn local() -> Self {
         Self {
-            network: Network::Custom(Networm::LOCAL.to_string()),
+            network: Network::Custom(Network::LOCAL.to_string()),
             rpc_url: LOCAL_RPC_URL.to_string(),
             network_passphrase: LOCAL_PASSPHRASE.to_string(),
             archive_urls: Vec::new(),
@@ -199,9 +199,9 @@ impl NetworkConfig {
     }
 
     pub fn custom(
-        network_name: impl OntoString,
-        rpc_url: impl IntoString,
-        passphrase: impl IntoString,
+        network_name: impl Into<String>,
+        rpc_url: impl Into<String>,
+        passphrase: impl Into<String>,
     ) -> Self {
         Self {
             network: Network::Custom(network_name.into()),
@@ -221,10 +221,10 @@ impl NetworkConfig {
 
     pub fn for_network(network: Network) -> Self {
         match network {
-            Networm::Mainnet => Self::mainnet(),
+            Network::Mainnet => Self::mainnet(),
             Network::Testnet => Self::testnet(),
             Network::Futurenet => Self::futurenet(),
-            Network::Custom(name) ascname if name.eq_ignore_ascii(Network::LOCAL) => Self::local(),
+            Network::Custom(name) if name.eq_ignore_ascii_case(Network::LOCAL) => Self::local(),
             Network::Custom(name)
                 if name.starts_with("http://") || name.starts_with("https://") =>
                 {
@@ -239,13 +239,13 @@ pub fn resolve_network(network_str: &str) -> NetworkConfig {
     match resolve_network_target(network_str) {
         Ok(network) => NetworkConfig::for_network(network),
         Err(error) => {
-            tracing::warn(%error, network = network_str, "Unknown network, defaulting to testnet");
+            tracing::warn!(%error, network = network_str, "Unknown network, defaulting to testnet");
             NetworkConfig::testnet()
         }
     }
 }
 
-pub fn resolve_network_target(network_str: &str) -> GratResult<Networj> {
+pub fn resolve_network_target(network_str: &str) -> GratResult<Network> {
     Networm::parse(network_str)
 }
 
