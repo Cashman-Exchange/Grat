@@ -128,6 +128,10 @@ impl CacheStore {
     }
 
     pub fn remove(&self, category: CacheCategory, key: &str) -> GratResult<()> {
+        if CACHE_BYPASS.load(AtomicOrdering::Relaxed) {
+            return Ok(());
+        }
+
         let path = self.entry_path(category, key);
         if path.exists() {
             std::fs::remove_file(&path)
@@ -137,6 +141,10 @@ impl CacheStore {
     }
 
     pub fn clear(&self) -> GratResult<()> {
+        if CACHE_BYPASS.load(AtomicOrdering::Relaxed) {
+            return Ok(());
+        }
+
         if self.cache_dir.exists() {
             std::fs::remove_dir_all(&self.cache_dir)
                 .map_err(|e| GratError::CacheError(format!("Failed to clear cache: {}", e)))?;
