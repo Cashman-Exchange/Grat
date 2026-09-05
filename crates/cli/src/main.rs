@@ -217,7 +217,7 @@ fn build_log_filter(verbose: u8) -> EnvFilter {
 
 fn validate_url(value: &str) -> Result<String, String> {
     Url::parse(value)
-        .map(|_ | value.to_string())
+        .map(|_| value.to_string())
         .map_err(|_| format!("Invalid URL: {value}"))
 }
 
@@ -310,6 +310,17 @@ mod tests {
         let cli = Cli::try_parse_from(["grat", "trace", &tx_hash, "--save", "out.json"])
             .expect("--save after subcommand should parse");
         assert_eq!(cli.save.as_deref(), Some("out.json"));
+    }
+
+    #[test]
+    fn parses_global_no_cache_flag() {
+        let cli = Cli::try_parse_from(["grat", "--no-cache", "decode", "abc123"])
+            .expect("--no-cache before subcommand should parse");
+        assert!(cli.no_cache);
+
+        let cli = Cli::try_parse_from(["grat", "decode", "abc123", "--no-cache"])
+            .expect("--no-cache after subcommand should parse");
+        assert!(cli.no_cache);
     }
 
     #[test]
