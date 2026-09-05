@@ -47,8 +47,10 @@ impl CacheStore {
     }
 
     pub fn with_max_size_bytes(cache_dir: PathBuf, max_size_bytes: u64) -> GratResult<Self> {
-        std::fs::create_dir_all(&cache_dir)
-            .map_err(|e| GratError::CacheError(format!("Failed to create cache dir: {}", e)))?;
+        if !CACHE_BYPASS.load(AtomicOrdering::Relaxed) {
+            std::fs::create_dir_all(&cache_dir)
+                .map_err(|e| GratError::CacheError(format!("Failed to create cache dir: {}", e)))?;
+        }
 
         Ok(Self {
             cache_dir,
