@@ -362,50 +362,8 @@ impl SorobanRpcClient {
             GratError::RpcError("RPC request failed after all retries".to_string())
         }))
     }
-}se.error {
-                        tracing::debug!(
-                            method,
-                            endpoint = %self.rpc_url,
-                            attempt,
-                            error = %err.message,
-                            code = err.code,
-                            "RPC returned an error response"
-                        );
-                        return Err(GratError::JsonRpc(err));
-                    }
-
-                    return rpc_response
-                        .result
-                        .ok_or_else(|| GratError::RpcError("Empty result in RPC response".into()));
-                }
-                Err(e) => {
-                    let elapsed_ms = started.elapsed().as_millis();
-                    let duration_secs = started.elapsed().as_secs_f64();
-                    crate::rpc::record_rpc_duration(&self.rpc_url, method, duration_secs);
-                    tracing::info!(
-                        method,
-                        endpoint = %self.rpc_url,
-                        attempt,
-                        elapsed_ms,
-                        error = %e,
-                        "RPC request latency"
-                    );
-                    tracing::debug!(
-                        method,
-                        endpoint = %self.rpc_url,
-                        attempt,
-                        elapsed_ms,
-                        error = %e,
-                        "RPC request failed"
-                    );
-                    last_error = Some(GratError::RpcError(format!("HTTP request failed: {e}")));
-                }
-            }
-        }
-
-        Err(last_error.unwrap_or_else(|| GratError::RpcError("Unknown RPC error".into())))
-    }
 }
+
 
 #[cfg(test)]
 mod tests {
