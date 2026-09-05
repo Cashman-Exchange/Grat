@@ -6,6 +6,7 @@ pub mod decode;
 pub mod diagnostic;
 pub mod diff;
 pub mod export;
+pub mod history;
 pub mod inspect;
 pub mod profile;
 pub mod replay;
