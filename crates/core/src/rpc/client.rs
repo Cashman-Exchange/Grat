@@ -342,6 +342,27 @@ impl SorobanRpcClient {
                         .map_err(|e| GratError::RpcError(format!("Response parse error: {e}")))?;
 
                     if let Some(err) = rpc_response.error {
+                        return Err(GratError::RpcError(format!("JSON-RPC error: {err:?}")));
+                    }
+
+                    if let Some(result) = rpc_response.result {
+                        return Ok(result);
+                    }
+
+                    return Err(GratError::RpcError("RPC response missing result".to_string()));
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "Network error sending RPC request");
+                    last_error = Some(GratError::RpcError(format!("Network error: {e}")));
+                    continue;
+                }
+            }
+        }
+        Err(last_error.unwrap_or_else(|| {
+            GratError::RpcError("RPC request failed after all retries".to_string())
+        }))
+    }
+}se.error {
                         tracing::debug!(
                             method,
                             endpoint = %self.rpc_url,
