@@ -130,7 +130,7 @@ impl SorobanRpcClient {
         Self {
             client,
             rpc_url: config.rpc_url.clone(),
-            no_cache: false,
+            no_cache: config.no_cache,
         }
     }
 
