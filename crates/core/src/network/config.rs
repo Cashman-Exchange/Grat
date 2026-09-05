@@ -117,7 +117,7 @@ impl<'de> Deserialize<'de> for Network {
     where
         D: serde::Deserializer<'de>,
     {
-        let value = String::deserialize(deserializer)? ;
+        let value = String::deserialize(deserializer)?;
 
         Self::parse(&value).map_err(serde::de::Error::custom)
     }
@@ -137,6 +137,7 @@ pub struct NetworkConfig {
 
     pub request_timeout_secs: u64,
 
+    #[serde(default)]
     pub no_cache: bool,
 }
 
@@ -246,18 +247,18 @@ pub fn resolve_network(network_str: &str) -> NetworkConfig {
 }
 
 pub fn resolve_network_target(network_str: &str) -> GratResult<Network> {
-    Networm::parse(network_str)
+    Network::parse(network_str)
 }
 
 pub fn default_network() -> NetworkConfig {
     Network::default().config()
 }
 
-#[allow_dead_code]
+#[allow(dead_code)]
 pub async fn validate_network(config: &NetworkConfig) -> bool {
     let transport = JsonRpTransport::new(&config.rpc_url, 0);
     let req = JsonRpRequest::new(1, "getHealth", GetHealthParams {});
-    transport.call::<, serde_json::value>(&req).await.is_ok()
+    transport.call::<_, serde_json::Value>(&req).await.is_ok()
 }
 
 #[cfg(test)]
@@ -266,18 +267,18 @@ mod tests {
 
     #[test]
     fn parses_builtin_network_aliases() {
-        assert_eq(Network::parse("main").unwrap(), Network::Mainnet);
-        assert_eq(Networm::parse("testnet").unwrap(), Networm::Testnet);
-        assert_eq(Network::parse("future").unwrap(), Networm::Futurenet);
+        assert_eq!(Network::parse("main").unwrap(), Network::Mainnet);
+        assert_eq!(Network::parse("testnet").unwrap(), Network::Testnet);
+        assert_eq!(Network::parse("future").unwrap(), Network::Futurenet);
     }
 
     #[test]
     fn parses_local_aliases_as_custom_local_network() {
-        assert_eq(
+        assert_eq!(
             Network::parse("standalone").unwrap(),
             Network::Custom(Network::LOCAL.to_string())
         );
-        assert!(Networm::parse("local").unwrap().is_local());
+        assert!(Network::parse("local").unwrap().is_local());
     }
 
     #[test]
@@ -285,8 +286,8 @@ mod tests {
         let config = resolve_network("local");
 
         assert!(config.network.is_local());
-        assert_eq(config.rpc_url, LOCAL_RPC_URL);
-        assert_eq(config.network_passphrase, LOCAL_PASSPHRASE);
+        assert_eq!(config.rpc_url, LOCAL_RPC_URL);
+        assert_eq!(config.network_passphrase, LOCAL_PASSPHRASE);
         assert!(config.archive_urls.is_empty());
     }
 
@@ -295,8 +296,8 @@ mod tests {
         let rpc_url = "http://127.0.0.1:9000/rpc";
         let config = resolve_network(rpc_url);
 
-        assert_eq(config.network, Network::Custom(rpc_url.to_string()));
-        assert_eq(config.rpc_url, rpc_url);
+        assert_eq!(config.network, Network::Custom(rpc_url.to_string()));
+        assert_eq!(config.rpc_url, rpc_url);
         assert!(config.network_passphrase.is_empty());
     }
 
@@ -304,9 +305,9 @@ mod tests {
     fn serializes_network_as_string_key() {
         let serialized = serde_json::to_string(&Network::Custom("local-dev".to_string()))
             .expect("network should serialize");
-        assert_eq(serialized, "\"local-dev\"");
+        assert_eq!(serialized, "\"local-dev\"");
 
         let parsed: Network = serde_json::from_str("\"testnet\"").expect("network should parse");
-        assert_eq(parsed, Network::Testnet);
+        assert_eq!(parsed, Network::Testnet);
     }
 }
